@@ -30,7 +30,8 @@ import {
   Filter,
   History,
   Wallet,
-  MapPin
+  MapPin,
+  ChevronDown
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
@@ -62,6 +63,7 @@ export default function POSPage() {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isEWalletOpen, setIsEWalletOpen] = useState(false);
@@ -383,46 +385,85 @@ export default function POSPage() {
                 </div>
                 
                 <div className="flex flex-col md:flex-row gap-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <div className="relative flex-1 flex items-center">
                     <input
+                      id="pos-search-input"
                       type="text"
                       placeholder="Search products or categories..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all text-lg font-medium"
+                      className="w-full pl-6 pr-28 py-4 bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all text-lg font-medium"
                     />
+                    <button 
+                      onClick={() => {
+                        const inputEl = document.getElementById('pos-search-input');
+                        if (inputEl) inputEl.focus();
+                      }}
+                      className="absolute right-3 px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      <Search className="w-4 h-4" />
+                      Search
+                    </button>
                   </div>
                   
-                  <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+                  <div className="relative">
                     <button
-                      onClick={() => setSelectedCategory(null)}
-                      className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap border-2 flex items-center gap-2 cursor-pointer ${
-                        !selectedCategory 
-                          ? 'bg-orange-100 text-orange-600 border-orange-200 shadow-sm' 
-                          : 'bg-white text-gray-400 border-gray-100 hover:border-gray-300'
-                      }`}
+                      onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                      className="w-full md:w-auto px-6 py-4 bg-white hover:bg-gray-50 border-2 border-gray-100 rounded-[2rem] shadow-sm font-black text-xs uppercase tracking-wider transition-all flex items-center justify-between gap-4 cursor-pointer min-w-[220px]"
                     >
-                      <span>✨</span>
-                      <span>All</span>
+                      <div className="flex items-center gap-2 text-gray-700">
+                        <Filter className="w-4 h-4 text-orange-500" />
+                        <span>
+                          {selectedCategory ? `${getCategoryEmoji(selectedCategory)} ${selectedCategory}` : '✨ All Categories'}
+                        </span>
+                      </div>
+                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
-                    {categories.map(cat => {
-                      const emoji = getCategoryEmoji(cat);
-                      return (
-                        <button
-                          key={cat}
-                          onClick={() => setSelectedCategory(cat)}
-                          className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap border-2 flex items-center gap-2 cursor-pointer ${
-                            selectedCategory === cat
-                              ? 'bg-orange-100 text-orange-600 border-orange-200 shadow-sm' 
-                              : 'bg-white text-gray-400 border-gray-100 hover:border-gray-300'
-                          }`}
-                        >
-                          <span>{emoji}</span>
-                          <span>{cat}</span>
-                        </button>
-                      );
-                    })}
+
+                    {isCategoryDropdownOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-10" 
+                          onClick={() => setIsCategoryDropdownOpen(false)} 
+                        />
+                        <div className="absolute right-0 mt-2 w-full md:w-[260px] bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/40 py-2 z-20 overflow-hidden max-h-[300px] overflow-y-auto">
+                          <button
+                            onClick={() => {
+                              setSelectedCategory(null);
+                              setIsCategoryDropdownOpen(false);
+                            }}
+                            className={`w-full px-6 py-3.5 text-left font-black text-xs uppercase tracking-wider transition-all flex items-center gap-3 cursor-pointer ${
+                              !selectedCategory 
+                                ? 'bg-orange-50 text-orange-600' 
+                                : 'hover:bg-gray-50 text-gray-400'
+                            }`}
+                          >
+                            <span>✨</span>
+                            <span>All Categories</span>
+                          </button>
+                          {categories.map(cat => {
+                            const emoji = getCategoryEmoji(cat);
+                            return (
+                              <button
+                                key={cat}
+                                onClick={() => {
+                                  setSelectedCategory(cat);
+                                  setIsCategoryDropdownOpen(false);
+                                }}
+                                className={`w-full px-6 py-3.5 text-left font-black text-xs uppercase tracking-wider transition-all flex items-center gap-3 cursor-pointer ${
+                                  selectedCategory === cat
+                                    ? 'bg-orange-50 text-orange-600' 
+                                    : 'hover:bg-gray-50 text-gray-400'
+                                }`}
+                              >
+                                <span>{emoji}</span>
+                                <span className="truncate">{cat}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
