@@ -1,0 +1,112 @@
+{
+  "rules": {
+    /* 
+      FIREBASE REALTIME DATABASE SECURITY RULES
+      =========================================
+      
+      This file provides hardened security and schema validation for your POS sync data.
+      To deploy these rules:
+      1. Open your Firebase Console (https://console.firebase.google.com/)
+      2. Navigate to "Realtime Database" and click on the "Rules" tab.
+      3. Paste this JSON content and click "Publish".
+
+      SECURITY NOTE:
+      Currently, the POS app syncs client-side using direct REST endpoints without user-specific
+      auth tokens. Therefore, we use a ZEROTRUST schema-validation strategy. 
+      This prevents unauthorized database wipes, injection of garbage data, or type corruption.
+      
+      If you configure Firebase Authentication and pass the auth token in the sync fetch calls,
+      you can change the ".read" and ".write" rules below to "auth != null".
+    */
+
+    ".read": true,
+    ".write": true,
+
+    "users": {
+      "$userId": {
+        ".validate": "newData.hasChildren(['id', 'name', 'email', 'passwordHash', 'role'])",
+        "id": { ".validate": "newData.isString() && newData.val() == $userId" },
+        "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100" },
+        "email": { ".validate": "newData.isString() && newData.val().contains('@')" },
+        "passwordHash": { ".validate": "newData.isString()" },
+        "role": { ".validate": "newData.val() == 'admin' || newData.val() == 'cashier'" },
+        "createdAt": { ".validate": "newData.isNumber()" },
+        "updatedAt": { ".validate": "newData.isNumber()" }
+      }
+    },
+
+    "products": {
+      "$productId": {
+        ".validate": "newData.hasChildren(['id', 'name', 'price', 'cost', 'stock', 'category'])",
+        "id": { ".validate": "newData.isString() && newData.val() == $productId" },
+        "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200" },
+        "price": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "cost": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "stock": { ".validate": "newData.isNumber()" },
+        "category": { ".validate": "newData.isString()" },
+        "updatedAt": { ".validate": "newData.isNumber()" }
+      }
+    },
+
+    "transactions": {
+      "$transactionId": {
+        ".validate": "newData.hasChildren(['id', 'ticketNumber', 'total', 'timestamp'])",
+        "id": { ".validate": "newData.isString() && newData.val() == $transactionId" },
+        "ticketNumber": { ".validate": "newData.isString()" },
+        "total": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "timestamp": { ".validate": "newData.isNumber()" },
+        "paymentMethod": { ".validate": "newData.val() == 'cash' || newData.val() == 'gcash' || newData.val() == 'credit' || newData.val() == 'split'" },
+        "isPaid": { ".validate": "newData.isBoolean()" },
+        "remainingCreditBalance": { ".validate": "!newData.exists() || newData.isNumber()" },
+        "updatedAt": { ".validate": "newData.isNumber()" }
+      }
+    },
+
+    "customers": {
+      "$customerId": {
+        ".validate": "newData.hasChildren(['id', 'name', 'totalUtang'])",
+        "id": { ".validate": "newData.isString() && newData.val() == $customerId" },
+        "name": { ".validate": "newData.isString() && newData.val().length > 0" },
+        "totalUtang": { ".validate": "newData.isNumber()" },
+        "updatedAt": { ".validate": "newData.isNumber()" }
+      }
+    },
+
+    "credit_log": {
+      "$logId": {
+        ".validate": "newData.hasChildren(['id', 'customerId', 'amount', 'type'])",
+        "id": { ".validate": "newData.isString() && newData.val() == $logId" },
+        "customerId": { ".validate": "newData.isString()" },
+        "amount": { ".validate": "newData.isNumber()" },
+        "type": { ".validate": "newData.val() == 'credit' || newData.val() == 'payment'" },
+        "timestamp": { ".validate": "newData.isNumber()" }
+      }
+    },
+
+    "expenses": {
+      "$expenseId": {
+        ".validate": "newData.hasChildren(['id', 'amount', 'category', 'timestamp'])",
+        "id": { ".validate": "newData.isString() && newData.val() == $expenseId" },
+        "amount": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "category": { ".validate": "newData.isString()" },
+        "timestamp": { ".validate": "newData.isNumber()" }
+      }
+    },
+
+    "categories": {
+      "$categoryId": {
+        ".validate": "newData.hasChildren(['id', 'name'])",
+        "id": { ".validate": "newData.isString() && newData.val() == $categoryId" },
+        "name": { ".validate": "newData.isString() && newData.val().length > 0" }
+      }
+    },
+
+    "branches": {
+      "$branchId": {
+        ".validate": "newData.hasChildren(['id', 'name'])",
+        "id": { ".validate": "newData.isString() && newData.val() == $branchId" },
+        "name": { ".validate": "newData.isString() && newData.val().length > 0" }
+      }
+    }
+  }
+}

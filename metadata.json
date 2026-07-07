@@ -1,0 +1,6 @@
+{
+  "name": "JHEFF POS Cloud",
+  "description": "A vibrant, fully-featured cloud point-of-sale system.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
