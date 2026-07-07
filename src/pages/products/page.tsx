@@ -28,6 +28,7 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [stockFilter, setStockFilter] = useState<'all' | 'instock' | 'low' | 'out'>('all');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   if (!loadingBranches && !currentBranchId) {
@@ -68,9 +69,20 @@ export default function ProductsPage() {
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           p.category.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = !selectedCategory || p.category === selectedCategory;
-      return matchesSearch && matchesCategory;
+      
+      const threshold = p.lowStockThreshold !== undefined ? p.lowStockThreshold : 5;
+      let matchesStock = true;
+      if (stockFilter === 'instock') {
+        matchesStock = p.stock > threshold;
+      } else if (stockFilter === 'low') {
+        matchesStock = p.stock > 0 && p.stock <= threshold;
+      } else if (stockFilter === 'out') {
+        matchesStock = p.stock <= 0;
+      }
+
+      return matchesSearch && matchesCategory && matchesStock;
     });
-  }, [products, searchQuery, selectedCategory]);
+  }, [products, searchQuery, selectedCategory, stockFilter]);
 
   const handleExport = () => {
     const exportData = filteredProducts.map(p => ({
@@ -146,41 +158,82 @@ export default function ProductsPage() {
               </div>
             </div>
   
-            {!isCashier && (
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleExport}
-                  className="bg-white hover:bg-gray-50 text-gray-900 font-bold px-6 py-4 rounded-2xl flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition-all active:scale-95"
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Category Dropdown */}
+              <div className="relative">
+                <select
+                  value={selectedCategory || ''}
+                  onChange={(e) => setSelectedCategory(e.target.value || null)}
+                  className="appearance-none bg-white hover:bg-gray-50 text-gray-900 font-bold pl-4 pr-10 py-4 rounded-2xl border border-gray-200 shadow-sm outline-none focus:ring-2 focus:ring-orange-500 transition-all text-xs cursor-pointer min-w-[150px]"
                 >
-                  <Download className="w-5 h-5" />
-                  Export CSV
-                </button>
-                <button
-                  onClick={() => setIsImportOpen(true)}
-                  className="bg-white hover:bg-gray-50 text-gray-900 font-bold px-6 py-4 rounded-2xl flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition-all active:scale-95"
-                >
-                  <Upload className="w-5 h-5" />
-                  Import CSV
-                </button>
-                <button
-                  onClick={() => setIsCategoryModalOpen(true)}
-                  className="bg-white hover:bg-gray-50 text-gray-900 font-bold px-6 py-4 rounded-2xl flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition-all active:scale-95 cursor-pointer"
-                >
-                  <FolderOpen className="w-5 h-5 text-gray-700" />
-                  Categories
-                </button>
-                <button
-                  onClick={() => {
-                    setEditingProduct(null);
-                    setIsFormOpen(true);
-                  }}
-                  className="bg-orange-600 hover:bg-orange-700 text-white font-bold px-6 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-orange-200 transition-all active:scale-95"
-                >
-                  <Plus className="w-5 h-5" />
-                  Add New Product
-                </button>
+                  <option value="">All Categories</option>
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-500">
+                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                  </svg>
+                </div>
               </div>
-            )}
+
+              {/* Stock Filter Dropdown */}
+              <div className="relative">
+                <select
+                  value={stockFilter}
+                  onChange={(e) => setStockFilter(e.target.value as any)}
+                  className="appearance-none bg-white hover:bg-gray-50 text-gray-900 font-bold pl-4 pr-10 py-4 rounded-2xl border border-gray-200 shadow-sm outline-none focus:ring-2 focus:ring-orange-500 transition-all text-xs cursor-pointer min-w-[150px]"
+                >
+                  <option value="all">All Stocks</option>
+                  <option value="instock">In Stock</option>
+                  <option value="low">Low Stocks</option>
+                  <option value="out">No Stocks</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-500">
+                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                  </svg>
+                </div>
+              </div>
+
+              <button
+                onClick={handleExport}
+                className="bg-white hover:bg-gray-50 text-gray-900 font-bold px-6 py-4 rounded-2xl flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition-all active:scale-95 cursor-pointer text-xs"
+              >
+                <Download className="w-5 h-5 text-gray-700" />
+                Export CSV
+              </button>
+
+              {!isCashier && (
+                <>
+                  <button
+                    onClick={() => setIsImportOpen(true)}
+                    className="bg-white hover:bg-gray-50 text-gray-900 font-bold px-6 py-4 rounded-2xl flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition-all active:scale-95 cursor-pointer text-xs"
+                  >
+                    <Upload className="w-5 h-5 text-gray-700" />
+                    Import CSV
+                  </button>
+                  <button
+                    onClick={() => setIsCategoryModalOpen(true)}
+                    className="bg-white hover:bg-gray-50 text-gray-900 font-bold px-6 py-4 rounded-2xl flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition-all active:scale-95 cursor-pointer text-xs"
+                  >
+                    <FolderOpen className="w-5 h-5 text-gray-700" />
+                    Categories
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingProduct(null);
+                      setIsFormOpen(true);
+                    }}
+                    className="bg-orange-600 hover:bg-orange-700 text-white font-bold px-6 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-orange-200 transition-all active:scale-95 cursor-pointer text-xs"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Add New Product
+                  </button>
+                </>
+              )}
+            </div>
           </div>
   
           {isCashier && (
