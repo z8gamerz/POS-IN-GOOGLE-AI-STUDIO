@@ -13,7 +13,134 @@ const getProductEmojiAndBg = (product: { name: string; category: string }) => {
   const name = product.name.toLowerCase();
   const category = product.category.toLowerCase();
   
-  // 1. GCash / E-Wallet / Load
+  // --- HARDWARE DETECTION (Auto-detects hardware items and maps relevant emojis/colors) ---
+  
+  // 1. Hammer / Sledgehammer
+  if (name.includes('hammer') || name.includes('martilyo') || name.includes('mallet') || category.includes('hammer') || category.includes('striking')) {
+    return { emoji: '🔨', bg: 'bg-orange-50' };
+  }
+
+  // 2. Screwdriver / Drill / Wrench / Pliers / Hand Tools
+  if (
+    name.includes('screw') || name.includes('driver') || name.includes('drill') || 
+    name.includes('wrench') || name.includes('pliers') || name.includes('cutter') || 
+    name.includes('saw') || name.includes('hacksaw') || name.includes('measure') || 
+    name.includes('ruler') || name.includes('level') || name.includes('chisel') || 
+    name.includes('spanner') || name.includes('plais') || name.includes('katam') || 
+    category.includes('tool') || category.includes('tools') || category.includes('handtool')
+  ) {
+    return { emoji: '🔧', bg: 'bg-blue-50' };
+  }
+
+  // 3. Nail / Bolt / Nut / Screw / Washer / Rivet / Anchors / Fasteners
+  if (
+    name.includes('nail') || name.includes('pako') || name.includes('bolt') || 
+    name.includes('nut') || name.includes('washer') || name.includes('rivet') || 
+    name.includes('anchor') || name.includes('fastener') || name.includes('turnilyo') || 
+    category.includes('fastener') || category.includes('fasteners') || category.includes('nail') || 
+    category.includes('screw')
+  ) {
+    return { emoji: '🔩', bg: 'bg-indigo-50' };
+  }
+
+  // 4. Paint / Brush / Roller / Thinner / Spray / Sandpaper
+  if (
+    name.includes('paint') || name.includes('pintura') || name.includes('brush') || 
+    name.includes('roller') || name.includes('thinner') || name.includes('lacquer') || 
+    name.includes('spray') || name.includes('sandpaper') || name.includes('liha') || 
+    name.includes('varnish') || name.includes('primer') || category.includes('paint') || 
+    category.includes('painting') || category.includes('coating')
+  ) {
+    return { emoji: '🎨', bg: 'bg-purple-50' };
+  }
+
+  // 5. Pipe / PVC / Plumbing / Faucet / Valve / Elbow / Coupling
+  if (
+    name.includes('pipe') || name.includes('pvc') || name.includes('tubo') || 
+    name.includes('faucet') || name.includes('gripo') || name.includes('valve') || 
+    name.includes('elbow') || name.includes('coupling') || name.includes('plumbing') || 
+    name.includes('hose') || category.includes('plumbing') || category.includes('pipe') || 
+    category.includes('fitting')
+  ) {
+    return { emoji: '🚰', bg: 'bg-blue-50' };
+  }
+
+  // 6. Lock / Padlock / Key / Hinge / Latch / Deadbolt
+  if (
+    name.includes('lock') || name.includes('padlock') || name.includes('susi') || 
+    name.includes('key') || name.includes('hinge') || name.includes('latch') || 
+    name.includes('deadbolt') || category.includes('lock') || (category.includes('hardware') && name.includes('hinge'))
+  ) {
+    return { emoji: '🔒', bg: 'bg-indigo-50' };
+  }
+
+  // 7. Bulb / LED / Lamp
+  if (name.includes('bulb') || name.includes('led') || name.includes('lamp') || name.includes('light') || name.includes('bumbilya') || category.includes('lighting') || category.includes('light')) {
+    return { emoji: '💡', bg: 'bg-yellow-50' };
+  }
+
+  // 8. Wire / Cable / Cord / Switch / Outlet / Breaker / Fuse / Electrical
+  if (
+    name.includes('wire') || name.includes('cable') || name.includes('cord') || 
+    name.includes('switch') || name.includes('outlet') || name.includes('breaker') || 
+    name.includes('fuse') || name.includes('electrical') || name.includes('plug') || 
+    name.includes('kuryente') || category.includes('electrical') || category.includes('wire')
+  ) {
+    return { emoji: '🔌', bg: 'bg-red-50' };
+  }
+
+  // 9. Wood / Lumber / Plywood / Timber / Board
+  if (
+    name.includes('wood') || name.includes('lumber') || name.includes('plywood') || 
+    name.includes('board') || name.includes('kahoy') || name.includes('plank') || 
+    category.includes('wood') || category.includes('lumber')
+  ) {
+    return { emoji: '🪵', bg: 'bg-orange-50' };
+  }
+
+  // 10. Cement / Concrete / Brick / Hollow Block / Gravel / Sand
+  if (
+    name.includes('cement') || name.includes('semento') || name.includes('concrete') || 
+    name.includes('brick') || name.includes('gravel') || name.includes('sand') || 
+    name.includes('hollow') || name.includes('block') || name.includes('buhangin') || 
+    name.includes('graba') || category.includes('cement') || category.includes('masonry') || 
+    category.includes('aggregates')
+  ) {
+    return { emoji: '🧱', bg: 'bg-indigo-50' };
+  }
+
+  // 11. Safety Equipment / Helmet / Gloves / Vest / Goggles
+  if (
+    name.includes('helmet') || name.includes('safety') || name.includes('gloves') || 
+    name.includes('vest') || name.includes('goggles') || category.includes('safety') || 
+    category.includes('gear')
+  ) {
+    return { emoji: '🦺', bg: 'bg-green-50' };
+  }
+
+  // 12. Tape / Glue / Adhesive / Epoxy / Silicone / Sealant
+  if (
+    name.includes('tape') || name.includes('glue') || name.includes('adhesive') || 
+    name.includes('epoxy') || name.includes('silicone') || name.includes('sealant') || 
+    name.includes('rugby') || name.includes('vulca') || category.includes('adhesive') || 
+    category.includes('tape')
+  ) {
+    return { emoji: '🩹', bg: 'bg-purple-50' };
+  }
+
+  // 13. General Hardware / Steel / Metal / Iron / Sheet / Roofing
+  if (
+    name.includes('hardware') || name.includes('metal') || name.includes('steel') || 
+    name.includes('iron') || name.includes('sheet') || name.includes('roofing') || 
+    name.includes('yero') || name.includes('barb') || name.includes('wire mesh') || 
+    category.includes('hardware') || category.includes('metal') || category.includes('steel')
+  ) {
+    return { emoji: '🛠️', bg: 'bg-indigo-50' };
+  }
+
+  // --- GENERAL/CONSUMER GOODS DETECTION ---
+  
+  // 14. GCash / E-Wallet / Load
   if (name.includes('load') || name.includes('gcash') || name.includes('smart') || name.includes('globe') || name.includes('tm') || name.includes('sun') || name.includes('dito') || name.includes('e-wallet') || name.includes('transfer') || category.includes('load') || category.includes('wallet')) {
     return { emoji: '📱', bg: 'bg-blue-50' };
   }
