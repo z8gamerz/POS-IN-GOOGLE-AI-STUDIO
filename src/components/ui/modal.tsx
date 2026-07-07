@@ -29,14 +29,14 @@ export function Modal({ isOpen, onClose, title, children, footer }: ModalProps) 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh]"
+            className="relative w-full max-w-lg bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100 dark:border-zinc-800 flex flex-col max-h-[90vh]"
           >
             {/* Header */}
-            <div className="px-8 py-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
-              <h3 className="text-xl font-black text-gray-900 tracking-tight uppercase">{title}</h3>
+            <div className="px-8 py-6 border-b border-gray-50 dark:border-zinc-800/50 flex items-center justify-between bg-gray-50/30 dark:bg-zinc-800/20">
+              <h3 className="text-xl font-black text-gray-900 dark:text-zinc-50 tracking-tight uppercase">{title}</h3>
               <button 
                 onClick={onClose}
-                className="p-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-500 transition-colors"
+                className="p-2 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-xl text-gray-500 dark:text-zinc-400 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -49,7 +49,7 @@ export function Modal({ isOpen, onClose, title, children, footer }: ModalProps) 
 
             {/* Footer */}
             {footer && (
-              <div className="px-8 py-6 border-t border-gray-50 bg-gray-50/30">
+              <div className="px-8 py-6 border-t border-gray-50 dark:border-zinc-800/50 bg-gray-50/30 dark:bg-zinc-800/20">
                 {footer}
               </div>
             )}
