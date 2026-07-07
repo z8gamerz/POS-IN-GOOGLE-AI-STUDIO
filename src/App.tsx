@@ -3,6 +3,7 @@ import { AuthProvider } from '@/lib/contexts/auth-context';
 import { ReceiptProvider } from '@/lib/context/receipt-context';
 import { StoreProvider } from '@/lib/hooks/use-store';
 import { ThemeProvider } from '@/lib/contexts/theme-context';
+import { InstallPWA } from '@/components/layout/install-pwa';
 
 // Import Pages
 import Home from '@/pages/page';
@@ -72,6 +73,7 @@ export default function App() {
           <StoreProvider>
             <ReceiptProvider>
               <AppContent />
+              <InstallPWA />
             </ReceiptProvider>
           </StoreProvider>
         </AuthProvider>
