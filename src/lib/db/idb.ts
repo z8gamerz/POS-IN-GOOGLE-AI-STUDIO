@@ -33,6 +33,7 @@ export type Product = {
   branchId: string; // Reference to Branch
   barcode?: string;
   isWeightBased?: boolean; // Added for weight-based sales
+  lowStockThreshold?: number; // Custom threshold for low stock alert
   createdAt: number;
   updatedAt: number;
   isDeleted?: boolean;
@@ -62,6 +63,9 @@ export type Transaction = {
   paymentMethod: 'cash' | 'gcash' | 'credit' | 'split';
   referenceNumber?: string;
   creditAmount?: number;
+  deliveryFee?: number;
+  additionalCharges?: number;
+  additionalChargesNote?: string;
   splitDetails?: {
     cash: number;
     gcash: number;

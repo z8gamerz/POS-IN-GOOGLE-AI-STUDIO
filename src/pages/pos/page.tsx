@@ -149,6 +149,9 @@ export default function POSPage() {
     referenceNumber?: string;
     customerId?: string;
     creditAmount?: number;
+    deliveryFee?: number;
+    additionalCharges?: number;
+    additionalChargesNote?: string;
     splitDetails?: {
       cash: number;
       gcash: number;
@@ -164,13 +167,17 @@ export default function POSPage() {
       const ticketToFinalize = currentTicket;
       const orNumber = await getNextORNumber();
       
+      const deliveryFee = paymentDetails.deliveryFee || 0;
+      const additionalCharges = paymentDetails.additionalCharges || 0;
+      const grandTotal = total + deliveryFee + additionalCharges;
+
       // Calculate VAT if enabled
       let vatableSales = 0;
       let vatAmount = 0;
       if (store?.taxType === 'VAT') {
         const rate = (store.vatRate || 12) / 100;
-        vatableSales = total / (1 + rate);
-        vatAmount = total - vatableSales;
+        vatableSales = grandTotal / (1 + rate);
+        vatAmount = grandTotal - vatableSales;
       }
 
       // Fetch customer name for receipt printing
@@ -183,14 +190,14 @@ export default function POSPage() {
       const isCredit = paymentDetails.paymentMethod === 'credit';
       const isSplitWithCredit = paymentDetails.paymentMethod === 'split' && (paymentDetails.splitDetails?.credit || 0) > 0;
       const isTransactionPaid = !isCredit && !isSplitWithCredit;
-      const initialRemainingCredit = isCredit ? total : (isSplitWithCredit ? paymentDetails.splitDetails?.credit : undefined);
+      const initialRemainingCredit = isCredit ? grandTotal : (isSplitWithCredit ? paymentDetails.splitDetails?.credit : undefined);
 
       // 1. Create transaction as a ticket
       await addTransaction({
         ticketNumber: ticketToFinalize,
         orNumber,
         items: cart,
-        total,
+        total: grandTotal,
         vatableSales,
         vatAmount,
         taxType: store?.taxType || 'NON-VAT',
@@ -203,12 +210,17 @@ export default function POSPage() {
         splitDetails: paymentDetails.splitDetails || undefined,
         isPaid: isTransactionPaid,
         remainingCreditBalance: initialRemainingCredit,
+        deliveryFee,
+        additionalCharges,
+        additionalChargesNote: paymentDetails.additionalChargesNote || undefined,
       });
 
       await auditService.log('TRANSACTION_COMPLETE', JSON.stringify({
         ticketNumber: ticketToFinalize,
         orNumber,
-        total,
+        total: grandTotal,
+        deliveryFee,
+        additionalCharges,
         itemsCount: cart.length,
         paymentMethod: paymentDetails.paymentMethod,
         customerId: paymentDetails.customerId || undefined
@@ -242,7 +254,7 @@ export default function POSPage() {
         orNumber,
         timestamp: now,
         items: [...cart],
-        total,
+        total: grandTotal,
         vatableSales,
         vatAmount,
         taxType: store?.taxType || 'NON-VAT',
@@ -250,7 +262,10 @@ export default function POSPage() {
         type: 'sales',
         referenceNumber: paymentDetails.referenceNumber || (paymentDetails.splitDetails?.gcashRef),
         customerName: customerName,
-        splitDetails: paymentDetails.splitDetails
+        splitDetails: paymentDetails.splitDetails,
+        deliveryFee,
+        additionalCharges,
+        additionalChargesNote: paymentDetails.additionalChargesNote || undefined,
       }, async () => {
         // Automatically create a new empty ticket by rotating after receipt is closed
         await rotateTicket();

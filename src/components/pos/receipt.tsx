@@ -37,6 +37,9 @@ interface ReceiptProps {
     gcashRef?: string;
     credit: number;
   };
+  deliveryFee?: number;
+  additionalCharges?: number;
+  additionalChargesNote?: string;
 }
 
 const ReceiptHeader = ({ store, branch, ticketNumber, orNumber, timestamp, type }: any) => (
@@ -135,15 +138,42 @@ const ReceiptFooter = ({
   taxType,
   referenceNumber,
   customerName,
-  splitDetails
+  splitDetails,
+  deliveryFee,
+  additionalCharges,
+  additionalChargesNote
 }: any) => {
   const vatExempt = 0;
   const zeroRated = 0;
   
+  const hasExtraFees = type === 'sales' && ((deliveryFee || 0) > 0 || (additionalCharges || 0) > 0);
+  const itemsSubtotal = total - (deliveryFee || 0) - (additionalCharges || 0);
+
   return (
     <>
       <div className="border-t border-dashed border-black my-3" />
       <div className="space-y-1 mb-6">
+        {hasExtraFees && (
+          <div className="space-y-0.5 mb-2 text-[10px] border-b border-dotted border-black/30 pb-2">
+            <div className="flex justify-between">
+              <span>Items Subtotal:</span>
+              <span>₱{itemsSubtotal.toFixed(2)}</span>
+            </div>
+            {deliveryFee > 0 && (
+              <div className="flex justify-between">
+                <span>Delivery Fee:</span>
+                <span>₱{deliveryFee.toFixed(2)}</span>
+              </div>
+            )}
+            {additionalCharges > 0 && (
+              <div className="flex justify-between">
+                <span>Add. Charges ({additionalChargesNote || 'Other'}):</span>
+                <span>₱{additionalCharges.toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {taxType === 'VAT' && type === 'sales' && (
           <div className="space-y-0.5 mb-2 text-[10px]">
             <div className="flex justify-between opacity-70">
@@ -165,7 +195,7 @@ const ReceiptFooter = ({
           </div>
         )}
         <div className="flex justify-between text-lg font-bold">
-          <span>{type === 'sales' ? 'TOTAL:' : 'GRAND TOTAL:'}</span>
+          <span>{type === 'sales' ? 'TOTAL DUE:' : 'GRAND TOTAL:'}</span>
           <span>₱{(type === 'sales' ? total : total + (ewalletDetails?.fee || 0)).toFixed(2)}</span>
         </div>
         <div className="flex justify-between opacity-70 text-[10px]">
@@ -249,7 +279,10 @@ export function Receipt({
   onClose,
   referenceNumber,
   customerName,
-  splitDetails
+  splitDetails,
+  deliveryFee,
+  additionalCharges,
+  additionalChargesNote
 }: ReceiptProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
 
@@ -377,6 +410,9 @@ export function Receipt({
               referenceNumber={referenceNumber}
               customerName={customerName}
               splitDetails={splitDetails}
+              deliveryFee={deliveryFee}
+              additionalCharges={additionalCharges}
+              additionalChargesNote={additionalChargesNote}
             />
           </div>
         </div>

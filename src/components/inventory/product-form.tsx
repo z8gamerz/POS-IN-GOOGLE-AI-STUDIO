@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Product } from '@/lib/db/idb';
-import { X, Save, Package, Tag, Hash, Coins, MapPin } from 'lucide-react';
+import { X, Save, Package, Tag, Hash, Coins, MapPin, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { useBranches } from '@/lib/hooks/use-branches';
@@ -24,6 +24,7 @@ export function ProductForm({ product, onSave, onClose }: ProductFormProps) {
     category: '',
     barcode: '',
     branchId: '',
+    lowStockThreshold: '5',
   });
   const { categories } = useCategories(formData.branchId || currentBranchId || undefined);
   const [isSaving, setIsSaving] = useState(false);
@@ -39,10 +40,11 @@ export function ProductForm({ product, onSave, onClose }: ProductFormProps) {
         category: product.category,
         barcode: product.barcode || '',
         branchId: product.branchId,
+        lowStockThreshold: (product.lowStockThreshold !== undefined ? product.lowStockThreshold : 5).toString(),
       });
       setIsWeightBased(!!product.isWeightBased);
     } else if (currentBranchId) {
-      setFormData(prev => ({ ...prev, branchId: currentBranchId }));
+      setFormData(prev => ({ ...prev, branchId: currentBranchId, lowStockThreshold: '5' }));
       setIsWeightBased(false);
     }
   }, [product, currentBranchId]);
@@ -61,6 +63,7 @@ export function ProductForm({ product, onSave, onClose }: ProductFormProps) {
         cost: parseFloat(formData.cost) || 0,
         stock: parseInt(formData.stock),
         isWeightBased,
+        lowStockThreshold: parseInt(formData.lowStockThreshold) || 5,
       };
       if (product?.id) {
         await onSave({ ...data, id: product.id, createdAt: product.createdAt });
@@ -196,16 +199,30 @@ export function ProductForm({ product, onSave, onClose }: ProductFormProps) {
               </div>
               <div>
                 <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                  Barcode (Optional)
+                  <AlertCircle className="w-3 h-3 text-red-500" /> Low Stock Threshold
                 </label>
                 <input
-                  type="text"
-                  value={formData.barcode}
-                  onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                  placeholder="Scan or type..."
+                  type="number"
+                  required
+                  value={formData.lowStockThreshold}
+                  onChange={(e) => setFormData({ ...formData, lowStockThreshold: e.target.value })}
+                  placeholder="e.g. 5"
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none transition-all"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                Barcode (Optional)
+              </label>
+              <input
+                type="text"
+                value={formData.barcode}
+                onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                placeholder="Scan or type..."
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none transition-all"
+              />
             </div>
 
             <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-xl border border-gray-100">

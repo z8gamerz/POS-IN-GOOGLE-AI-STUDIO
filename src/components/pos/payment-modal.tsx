@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Customer } from '@/lib/db/idb';
 import { useCustomers } from '@/lib/hooks/use-customers';
 import { CustomerForm } from '@/components/utang/customer-form';
-import { X, Check, Coins, Wallet, UserCircle, UserPlus, Layers, Search } from 'lucide-react';
+import { X, Check, Coins, Wallet, UserCircle, UserPlus, Layers, Search, Truck, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface PaymentModalProps {
@@ -18,6 +18,9 @@ interface PaymentModalProps {
     referenceNumber?: string;
     customerId?: string;
     creditAmount?: number;
+    deliveryFee?: number;
+    additionalCharges?: number;
+    additionalChargesNote?: string;
     splitDetails?: {
       cash: number;
       gcash: number;
@@ -42,28 +45,39 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
   const [customerSearch, setCustomerSearch] = useState<string>('');
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
 
+  // Delivery & additional charges
+  const [deliveryFee, setDeliveryFee] = useState<string>('');
+  const [additionalCharges, setAdditionalCharges] = useState<string>('');
+  const [additionalChargesNote, setAdditionalChargesNote] = useState<string>('');
+
   // Split Payment details
   const [splitCash, setSplitCash] = useState<string>('');
   const [splitGCash, setSplitGCash] = useState<string>('');
   const [splitGCashRef, setSplitGCashRef] = useState<string>('');
   const [splitCredit, setSplitCredit] = useState<string>('');
 
+  const computedTotal = useMemo(() => {
+    const delivery = parseFloat(deliveryFee) || 0;
+    const addCharges = parseFloat(additionalCharges) || 0;
+    return total + delivery + addCharges;
+  }, [total, deliveryFee, additionalCharges]);
+
   // Automatically update Split Credit (unpaid/remaining balance) based on entered Cash and GCash
   useEffect(() => {
     if (paymentMethod === 'split') {
       const cashVal = parseFloat(splitCash) || 0;
       const gcashVal = parseFloat(splitGCash) || 0;
-      const remaining = Math.max(0, total - cashVal - gcashVal);
+      const remaining = Math.max(0, computedTotal - cashVal - gcashVal);
       setSplitCredit(remaining.toFixed(2));
     }
-  }, [splitCash, splitGCash, total, paymentMethod]);
+  }, [splitCash, splitGCash, computedTotal, paymentMethod]);
 
   const filteredCustomers = useMemo(() => {
     return customers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()));
   }, [customers, customerSearch]);
 
   // Validation
-  const changeDue = (parseFloat(amountTendered) || 0) - total;
+  const changeDue = (parseFloat(amountTendered) || 0) - computedTotal;
   const isCashValid = paymentMethod === 'cash' && changeDue >= 0;
   const isGCashValid = paymentMethod === 'gcash' && referenceNumber.trim().length > 0;
   const isCreditValid = paymentMethod === 'credit' && selectedCustomerId !== '';
@@ -84,10 +98,10 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
       return false;
     }
     
-    // Sum must match total exactly or be extremely close
+    // Sum must match computedTotal exactly or be extremely close
     const sum = cashVal + gcashVal + creditVal;
-    return Math.abs(sum - total) < 0.01 && sum > 0;
-  }, [paymentMethod, splitCash, splitGCash, splitGCashRef, splitCredit, selectedCustomerId, total]);
+    return Math.abs(sum - computedTotal) < 0.01 && sum > 0;
+  }, [paymentMethod, splitCash, splitGCash, splitGCashRef, splitCredit, selectedCustomerId, computedTotal]);
 
   const isValid = isCashValid || isGCashValid || isCreditValid || isSplitValid;
 
@@ -97,21 +111,30 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
     e.preventDefault();
     if (!isValid) return;
 
+    const extraFields = {
+      deliveryFee: parseFloat(deliveryFee) || 0,
+      additionalCharges: parseFloat(additionalCharges) || 0,
+      additionalChargesNote: additionalChargesNote.trim() || undefined,
+    };
+
     if (paymentMethod === 'cash') {
       onConfirm({
         paymentMethod: 'cash',
         amountTendered: parseFloat(amountTendered),
+        ...extraFields,
       });
     } else if (paymentMethod === 'gcash') {
       onConfirm({
         paymentMethod: 'gcash',
         referenceNumber: referenceNumber.trim(),
+        ...extraFields,
       });
     } else if (paymentMethod === 'credit') {
       onConfirm({
         paymentMethod: 'credit',
         customerId: selectedCustomerId,
-        creditAmount: total,
+        creditAmount: computedTotal,
+        ...extraFields,
       });
     } else if (paymentMethod === 'split') {
       const creditVal = parseFloat(splitCredit) || 0;
@@ -119,6 +142,7 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
         paymentMethod: 'split',
         customerId: creditVal > 0 ? selectedCustomerId : undefined,
         creditAmount: creditVal > 0 ? creditVal : undefined,
+        ...extraFields,
         splitDetails: {
           cash: parseFloat(splitCash) || 0,
           gcash: parseFloat(splitGCash) || 0,
@@ -170,12 +194,72 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
 
         {/* Content */}
         <form onSubmit={handleSubmit} className="p-8 space-y-6 flex-1 overflow-y-auto max-h-[75vh]">
-          {/* Total display */}
-          <div className="text-center bg-gray-50 p-6 rounded-3xl border border-gray-100 flex justify-between items-center">
-            <span className="text-sm font-black text-gray-400 uppercase tracking-widest">Amount Due</span>
-            <span className="text-3xl font-black text-orange-600 tracking-tighter">
-              ₱{total.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-            </span>
+          {/* Total display breakdown */}
+          <div className="bg-orange-50/20 p-5 rounded-3xl border border-orange-100/50 space-y-2">
+            <div className="flex justify-between text-xs text-gray-500 font-bold">
+              <span>Items Subtotal:</span>
+              <span>₱{total.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1 block flex items-center gap-1">
+                  <Truck className="w-3 h-3 text-orange-500" /> Delivery Fee
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-xs">₱</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={deliveryFee}
+                    onChange={(e) => setDeliveryFee(e.target.value)}
+                    className="w-full pl-7 pr-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-bold text-gray-800 focus:border-orange-500 outline-none transition-all"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1 block flex items-center gap-1">
+                  <Plus className="w-3 h-3 text-orange-500" /> Add. Charges
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-xs">₱</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={additionalCharges}
+                    onChange={(e) => setAdditionalCharges(e.target.value)}
+                    className="w-full pl-7 pr-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-bold text-gray-800 focus:border-orange-500 outline-none transition-all"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {(parseFloat(additionalCharges) > 0) && (
+              <div className="pt-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1 block">
+                  Charge Reason / Note
+                </label>
+                <input
+                  type="text"
+                  value={additionalChargesNote}
+                  onChange={(e) => setAdditionalChargesNote(e.target.value)}
+                  className="w-full px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-bold text-gray-800 focus:border-orange-500 outline-none transition-all"
+                  placeholder="e.g. Rush packing, handling fee..."
+                />
+              </div>
+            )}
+
+            <div className="flex justify-between items-center pt-3 border-t border-orange-100/50">
+              <span className="text-xs font-black text-gray-600 uppercase tracking-widest">Total Amount Due</span>
+              <span className="text-3xl font-black text-orange-600 tracking-tighter">
+                ₱{computedTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
           </div>
 
           {/* Payment Method Cards */}
@@ -473,7 +557,7 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
           {/* Error display */}
           {paymentMethod === 'split' && !isSplitValid && (splitCash || splitGCash) && (
             <div className="p-4 bg-red-50 text-red-600 rounded-2xl text-[10px] font-black uppercase tracking-wider leading-relaxed border border-red-100">
-              ❌ Split amounts must sum to exact total ₱{total.toFixed(2)}. Current Sum: ₱{( (parseFloat(splitCash) || 0) + (parseFloat(splitGCash) || 0) + (parseFloat(splitCredit) || 0) ).toFixed(2)}. 
+              ❌ Split amounts must sum to exact total ₱{computedTotal.toFixed(2)}. Current Sum: ₱{( (parseFloat(splitCash) || 0) + (parseFloat(splitGCash) || 0) + (parseFloat(splitCredit) || 0) ).toFixed(2)}. 
               { (parseFloat(splitGCash) || 0) > 0 && splitGCashRef.trim().length === 0 && " GCash reference is required." }
               { (parseFloat(splitCredit) || 0) > 0 && selectedCustomerId === '' && " Customer selection is required for credit." }
             </div>

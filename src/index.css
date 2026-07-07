@@ -129,7 +129,7 @@
     background-color: #3f3f46 !important;
   }
 
-  h1, h2, h3, h4, .font-black, .font-bold {
+  h1, h2, h3, h4, .font-display {
     font-family: var(--font-display);
   }
 

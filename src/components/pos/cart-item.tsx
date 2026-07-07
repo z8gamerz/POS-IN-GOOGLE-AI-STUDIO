@@ -69,50 +69,54 @@ export function CartItem({ item, onUpdateQuantity, onRemove }: CartItemProps) {
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      className="flex items-center gap-4 p-4 bg-white rounded-3xl border-2 border-gray-100/80 shadow-sm hover:shadow-md transition-all"
+      className="p-4 bg-white rounded-3xl border-2 border-gray-100/80 shadow-sm hover:shadow-md transition-all flex flex-col xs:flex-row xs:items-center gap-3"
     >
-      <div className={`w-12 h-12 ${bg} rounded-xl flex items-center justify-center text-2xl shrink-0`}>
-        {emoji}
-      </div>
-      
-      <div className="flex-1 min-w-0">
-        <h5 className="font-bold text-gray-800 truncate text-sm leading-tight tracking-tight">
-          {item.name}
-        </h5>
-        <div className="flex items-center gap-2 mt-1">
-          <span className="text-xs font-semibold text-gray-400">
-            ₱{item.price.toFixed(2)}{item.isWeightBased ? '/kg' : ''}
-          </span>
-          <span className="text-xs font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
-            ₱{(item.price * item.quantity).toFixed(2)}
-          </span>
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className={`w-11 h-11 ${bg} rounded-xl flex items-center justify-center text-xl shrink-0`}>
+          {emoji}
+        </div>
+        
+        <div className="flex-1 min-w-0">
+          <h5 className="font-extrabold text-gray-800 text-xs md:text-sm leading-snug tracking-tight truncate">
+            {item.name}
+          </h5>
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            <span className="text-[10px] font-bold text-gray-500 bg-gray-100/80 px-2 py-0.5 rounded-md shrink-0">
+              ₱{item.price.toFixed(2)}{item.isWeightBased ? '/kg' : ''}
+            </span>
+            <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md shrink-0 border border-orange-100/50">
+              Total: ₱{(item.price * item.quantity).toFixed(2)}
+            </span>
+          </div>
         </div>
       </div>
       
-      <div className="flex items-center gap-2 bg-gray-50 rounded-2xl p-1.5 border border-gray-100">
+      <div className="flex items-center justify-between xs:justify-end gap-2 pt-2 xs:pt-0 border-t xs:border-t-0 border-gray-50 shrink-0">
+        <div className="flex items-center gap-1 bg-gray-50 rounded-xl p-1 border border-gray-100 shrink-0">
+          <button 
+            onClick={() => onUpdateQuantity(item.productId, -1)}
+            className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg transition-all active:scale-90 text-gray-500 hover:text-gray-900"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+          <span className={`text-center font-black text-gray-900 text-xs shrink-0 ${item.isWeightBased ? 'w-16' : 'w-7'}`}>
+            {item.isWeightBased ? `${item.quantity.toFixed(3)} kg` : item.quantity}
+          </span>
+          <button 
+            onClick={() => onUpdateQuantity(item.productId, 1)}
+            className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg transition-all active:scale-90 text-gray-500 hover:text-gray-900"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        
         <button 
-          onClick={() => onUpdateQuantity(item.productId, -1)}
-          className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all active:scale-90"
+          onClick={() => onRemove(item.productId)}
+          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-90 shrink-0"
         >
-          <Minus className="w-4 h-4 text-gray-400" />
-        </button>
-        <span className={`text-center font-black text-gray-900 text-sm md:text-base ${item.isWeightBased ? 'w-20' : 'w-10'}`}>
-          {item.isWeightBased ? `${item.quantity.toFixed(3)} kg` : item.quantity}
-        </span>
-        <button 
-          onClick={() => onUpdateQuantity(item.productId, 1)}
-          className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all active:scale-90"
-        >
-          <Plus className="w-4 h-4 text-gray-400" />
+          <Trash2 className="w-4 h-4" />
         </button>
       </div>
-      
-      <button 
-        onClick={() => onRemove(item.productId)}
-        className="p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all active:scale-90"
-      >
-        <Trash2 className="w-5 h-5" />
-      </button>
     </motion.div>
   );
 }

@@ -119,7 +119,7 @@ export function WeightModal({ isOpen, product, onClose, onConfirm }: WeightModal
                     onClick={() => handlePreset(val)}
                     className="py-2.5 px-3 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 rounded-xl font-bold text-xs transition-all active:scale-95 cursor-pointer"
                   >
-                    {val < 1 ? `${val * 1000}g` : `${val}kg`}
+                    {val}kg
                   </button>
                 ))}
               </div>
@@ -138,7 +138,7 @@ export function WeightModal({ isOpen, product, onClose, onConfirm }: WeightModal
                     onClick={() => handleAddPreset(val)}
                     className="py-2.5 px-3 bg-gray-50 hover:bg-gray-100 border border-transparent text-gray-600 rounded-xl font-bold text-xs transition-all active:scale-95 cursor-pointer"
                   >
-                    +{val < 1 ? `${val * 1000}g` : `${val}kg`}
+                    +{val}kg
                   </button>
                 ))}
               </div>
