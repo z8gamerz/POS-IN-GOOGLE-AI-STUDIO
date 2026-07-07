@@ -7,6 +7,7 @@ import { productService } from '@/lib/services/product-service';
 import { branchService } from '@/lib/services/branch-service';
 import { auditService } from '@/lib/services/audit-service';
 import { pullSync, processQueue } from '@/lib/db/sync-queue';
+import { useAuth } from '@/lib/contexts/auth-context';
 
 const CURRENT_BRANCH_KEY = 'sarisari_current_branch_id';
 
@@ -35,6 +36,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [currentBranchId, setCurrentBranchId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const { user, isCashier } = useAuth();
 
   const loadStore = async () => {
     try {
@@ -130,13 +132,46 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const switchBranch = (branchId: string) => {
+    if (isCashier && user) {
+      const assignedIds = user.assignedBranchIds || [];
+      if (!assignedIds.includes(branchId)) {
+        console.warn('Unauthorized branch switch attempted');
+        return;
+      }
+    }
     setCurrentBranchId(branchId);
     localStorage.setItem(CURRENT_BRANCH_KEY, branchId);
   };
 
-  const currentBranch = branches.find(b => b.id === currentBranchId);
+  const allowedBranches = user && isCashier
+    ? branches.filter(b => user.assignedBranchIds?.includes(b.id))
+    : branches;
 
-  const filteredProducts = products.filter(p => p.branchId === currentBranchId);
+  const allowedProducts = user && isCashier
+    ? products.filter(p => user.assignedBranchIds?.includes(p.branchId))
+    : products;
+
+  const currentBranch = allowedBranches.find(b => b.id === currentBranchId);
+
+  const filteredProducts = allowedProducts.filter(p => p.branchId === currentBranchId);
+
+  // Enforce cashier branch restriction on mount / user change / branch load
+  useEffect(() => {
+    if (loading) return;
+    if (isCashier && user) {
+      const assignedIds = user.assignedBranchIds || [];
+      if (!currentBranchId || !assignedIds.includes(currentBranchId)) {
+        if (assignedIds.length > 0) {
+          const fallbackId = assignedIds[0];
+          setCurrentBranchId(fallbackId);
+          localStorage.setItem(CURRENT_BRANCH_KEY, fallbackId);
+        } else {
+          setCurrentBranchId(null);
+          localStorage.removeItem(CURRENT_BRANCH_KEY);
+        }
+      }
+    }
+  }, [user, isCashier, branches, currentBranchId, loading]);
 
   const addProduct = async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'isDeleted'>) => {
     const id = crypto.randomUUID();
@@ -201,9 +236,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       updateStore, 
       getNextORNumber, 
       products: filteredProducts, 
-      allProducts: products,
+      allProducts: allowedProducts,
       addProduct,
-      branches,
+      branches: allowedBranches,
       currentBranchId,
       currentBranch,
       addBranch,

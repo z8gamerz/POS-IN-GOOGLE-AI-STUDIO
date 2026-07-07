@@ -68,13 +68,13 @@ export default function App() {
   return (
     <ThemeProvider>
       <RouterProvider>
-        <StoreProvider>
-          <AuthProvider>
+        <AuthProvider>
+          <StoreProvider>
             <ReceiptProvider>
               <AppContent />
             </ReceiptProvider>
-          </AuthProvider>
-        </StoreProvider>
+          </StoreProvider>
+        </AuthProvider>
       </RouterProvider>
     </ThemeProvider>
   );

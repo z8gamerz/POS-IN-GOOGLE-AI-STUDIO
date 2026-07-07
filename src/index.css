@@ -22,97 +22,110 @@
     color: #f3f4f6;
   }
 
-  /* Global dark mode overrides for modal dialog and window components */
-  html.dark .fixed.inset-0 .bg-white {
-    background-color: #18181b !important; /* Zinc 900 */
+  /* Global dark mode overrides for the entire application */
+  html.dark .bg-white {
+    background-color: #12131a !important; /* Deep dark slate grey card bg */
     border-color: #27272a !important;    /* Zinc 800 */
     color: #f4f4f5 !important;            /* Zinc 100 */
   }
 
-  html.dark .fixed.inset-0 .border-gray-100,
-  html.dark .fixed.inset-0 .border-gray-200,
-  html.dark .fixed.inset-0 .border-gray-50,
-  html.dark .fixed.inset-0 .border-purple-100 {
-    border-color: #27272a !important; /* Zinc 800 */
+  html.dark .border-gray-100,
+  html.dark .border-gray-200,
+  html.dark .border-gray-50,
+  html.dark .border-purple-100 {
+    border-color: #22252e !important; /* Dark slate grey border */
   }
 
-  /* Sub headers / nested sections inside modals */
-  html.dark .fixed.inset-0 .bg-gray-50,
-  html.dark .fixed.inset-0 .bg-gray-50\/30,
-  html.dark .fixed.inset-0 .bg-gray-50\/50,
-  html.dark .fixed.inset-0 .bg-orange-50\/50,
-  html.dark .fixed.inset-0 .bg-purple-50,
-  html.dark .fixed.inset-0 .bg-red-50,
-  html.dark .fixed.inset-0 .bg-green-50,
-  html.dark .fixed.inset-0 .bg-orange-50\/20 {
-    background-color: #09090b !important; /* Zinc 950 */
-    border-color: #27272a !important;
+  /* Sub headers / nested sections / inner containers */
+  html.dark .bg-gray-50,
+  html.dark .bg-gray-50\/30,
+  html.dark .bg-gray-50\/50,
+  html.dark .bg-orange-50\/50,
+  html.dark .bg-purple-50,
+  html.dark .bg-red-50,
+  html.dark .bg-green-50,
+  html.dark .bg-orange-50\/20,
+  html.dark .bg-orange-50,
+  html.dark .bg-blue-50,
+  html.dark .bg-rose-50,
+  html.dark .bg-indigo-50 {
+    background-color: #0b0c10 !important; /* Zinc 950 / extra dark inner bg */
+    border-color: #22252e !important;
   }
 
-  /* Make sure text elements have clean, high-contrast colors inside dark mode modals */
-  html.dark .fixed.inset-0 .text-gray-900,
-  html.dark .fixed.inset-0 .text-gray-800,
-  html.dark .fixed.inset-0 .text-gray-700,
-  html.dark .fixed.inset-0 .text-gray-600 {
+  /* Colorful badges & action menus backdrops inside dark mode */
+  html.dark .bg-blue-50 { background-color: rgba(30, 58, 138, 0.25) !important; color: #93c5fd !important; }
+  html.dark .bg-rose-50 { background-color: rgba(136, 19, 55, 0.25) !important; color: #fca5a5 !important; }
+  html.dark .bg-orange-50 { background-color: rgba(124, 45, 18, 0.25) !important; color: #fdba74 !important; }
+  html.dark .bg-indigo-50 { background-color: rgba(49, 46, 129, 0.25) !important; color: #c7d2fe !important; }
+  html.dark .bg-red-50 { background-color: rgba(153, 27, 27, 0.25) !important; color: #fca5a5 !important; }
+  html.dark .bg-green-50 { background-color: rgba(20, 83, 45, 0.25) !important; color: #86efac !important; }
+  html.dark .bg-purple-50 { background-color: rgba(88, 28, 135, 0.25) !important; color: #d8b4fe !important; }
+
+  /* Make sure text elements have clean, high-contrast colors inside dark mode */
+  html.dark .text-gray-900,
+  html.dark .text-gray-800,
+  html.dark .text-gray-700,
+  html.dark .text-gray-600 {
     color: #f4f4f5 !important; /* Zinc 100 */
   }
 
-  html.dark .fixed.inset-0 .text-gray-500,
-  html.dark .fixed.inset-0 .text-gray-400 {
+  html.dark .text-gray-500,
+  html.dark .text-gray-400 {
     color: #a1a1aa !important; /* Zinc 400 */
   }
 
-  html.dark .fixed.inset-0 .text-purple-600,
-  html.dark .fixed.inset-0 .text-purple-700,
-  html.dark .fixed.inset-0 .text-purple-800 {
+  html.dark .text-purple-600,
+  html.dark .text-purple-700,
+  html.dark .text-purple-800 {
     color: #c084fc !important; /* Purple 400 */
   }
 
-  html.dark .fixed.inset-0 .text-green-600,
-  html.dark .fixed.inset-0 .text-green-700 {
+  html.dark .text-green-600,
+  html.dark .text-green-700 {
     color: #4ade80 !important; /* Green 400 */
   }
 
-  html.dark .fixed.inset-0 .text-orange-600 {
+  html.dark .text-orange-600 {
     color: #f97316 !important; /* Orange 500 */
   }
 
-  html.dark .fixed.inset-0 .text-red-600 {
+  html.dark .text-red-600 {
     color: #f87171 !important; /* Red 400 */
   }
 
-  /* Form control elements inside modals */
-  html.dark .fixed.inset-0 input,
-  html.dark .fixed.inset-0 select,
-  html.dark .fixed.inset-0 textarea {
-    background-color: #09090b !important; /* Zinc 950 */
-    border-color: #27272a !important;
+  /* Form control elements globally */
+  html.dark input,
+  html.dark select,
+  html.dark textarea {
+    background-color: #0b0c10 !important; /* Zinc 950 */
+    border-color: #22252e !important;
     color: #ffffff !important;
   }
 
-  html.dark .fixed.inset-0 input::placeholder,
-  html.dark .fixed.inset-0 textarea::placeholder {
+  html.dark input::placeholder,
+  html.dark textarea::placeholder {
     color: #52525b !important; /* Zinc 600 */
   }
 
   /* Dropdown lists/options and quick selectors */
-  html.dark .fixed.inset-0 .divide-gray-50 > *,
-  html.dark .fixed.inset-0 .divide-gray-100 > * {
-    border-color: #27272a !important;
+  html.dark .divide-gray-50 > *,
+  html.dark .divide-gray-100 > * {
+    border-color: #22252e !important;
   }
 
-  html.dark .fixed.inset-0 .hover\:bg-gray-50:hover,
-  html.dark .fixed.inset-0 .hover\:bg-gray-100:hover,
-  html.dark .fixed.inset-0 .hover\:bg-gray-200:hover {
-    background-color: #27272a !important;
+  html.dark .hover\:bg-gray-50:hover,
+  html.dark .hover\:bg-gray-100:hover,
+  html.dark .hover\:bg-gray-200:hover {
+    background-color: #22252e !important;
   }
 
-  /* General button corrections for modal footers/actions */
-  html.dark .fixed.inset-0 button.bg-gray-100 {
-    background-color: #27272a !important;
+  /* General button corrections */
+  html.dark button.bg-gray-100 {
+    background-color: #22252e !important;
     color: #f4f4f5 !important;
   }
-  html.dark .fixed.inset-0 button.bg-gray-100:hover {
+  html.dark button.bg-gray-100:hover {
     background-color: #3f3f46 !important;
   }
 

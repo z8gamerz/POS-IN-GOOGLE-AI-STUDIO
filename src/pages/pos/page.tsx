@@ -68,10 +68,19 @@ export default function POSPage() {
   const [completedTicket, setCompletedTicket] = useState<string>('');
   const [showCartMobile, setShowCartMobile] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
+
   // Weight-based and payment-modal states
   const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
   const [selectedWeightProduct, setSelectedWeightProduct] = useState<Product | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
+  // Reset page on search or category filter change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory]);
 
   const handleProductClick = (product: Product) => {
     if (product.isWeightBased) {
@@ -106,6 +115,13 @@ export default function POSPage() {
       return matchesSearch && matchesCategory;
     });
   }, [products, searchQuery, selectedCategory]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
+
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredProducts, currentPage, itemsPerPage]);
 
   const handleQuickAdd = async (name: string, price: number) => {
     if (price <= 0 || !currentBranchId) return;
@@ -418,14 +434,75 @@ export default function POSPage() {
                   <p className="text-gray-400 mt-2 font-medium">Try searching for something else or add a new product.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-6 pb-24 lg:pb-0">
-                  {filteredProducts.map((product) => (
-                    <ProductCard 
-                      key={product.id} 
-                      product={product} 
-                      onAdd={handleProductClick} 
-                    />
-                  ))}
+                <div className="space-y-6">
+                  <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-6 ${totalPages <= 1 ? 'pb-24 lg:pb-0' : ''}`}>
+                    {paginatedProducts.map((product) => (
+                      <ProductCard 
+                        key={product.id} 
+                        product={product} 
+                        onAdd={handleProductClick} 
+                      />
+                    ))}
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 pb-24 lg:pb-8">
+                      <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                        Showing {Math.min(filteredProducts.length, (currentPage - 1) * itemsPerPage + 1)}-
+                        {Math.min(filteredProducts.length, currentPage * itemsPerPage)} of {filteredProducts.length} items
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                          disabled={currentPage === 1}
+                          className="px-4 py-2 bg-white hover:bg-gray-50 border border-gray-100 disabled:opacity-40 disabled:pointer-events-none rounded-xl text-[10px] font-black uppercase tracking-wider text-gray-600 transition-all cursor-pointer"
+                        >
+                          Prev
+                        </button>
+                        
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => {
+                            if (
+                              totalPages > 6 &&
+                              pNum !== 1 &&
+                              pNum !== totalPages &&
+                              Math.abs(pNum - currentPage) > 1
+                            ) {
+                              if (pNum === 2 && currentPage > 3) {
+                                return <span key="ellipsis-start" className="text-gray-400 px-1 font-bold">...</span>;
+                              }
+                              if (pNum === totalPages - 1 && currentPage < totalPages - 2) {
+                                return <span key="ellipsis-end" className="text-gray-400 px-1 font-bold">...</span>;
+                              }
+                              return null;
+                            }
+                            return (
+                              <button
+                                key={pNum}
+                                onClick={() => setCurrentPage(pNum)}
+                                className={`w-8 h-8 rounded-xl text-[10px] font-black transition-all flex items-center justify-center cursor-pointer ${
+                                  currentPage === pNum
+                                    ? 'bg-orange-600 text-white shadow-md'
+                                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100'
+                                }`}
+                              >
+                                {pNum}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                          disabled={currentPage === totalPages}
+                          className="px-4 py-2 bg-white hover:bg-gray-50 border border-gray-100 disabled:opacity-40 disabled:pointer-events-none rounded-xl text-[10px] font-black uppercase tracking-wider text-gray-600 transition-all cursor-pointer"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
