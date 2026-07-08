@@ -99,7 +99,36 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     loadStore();
-  }, []);
+
+    // Auto background synchronization every 30 seconds to keep multiple devices updated
+    const syncInterval = setInterval(() => {
+      if (typeof window !== 'undefined' && window.navigator.onLine) {
+        pullSync()
+          .then(() => processQueue())
+          .then(() => {
+            // Reload local state by reading the updated stores
+            const businessId = store?.id || 'main_config';
+            return Promise.all([
+              storeService.getStore(),
+              branchService.getByBusiness(businessId),
+              productService.getAll()
+            ]);
+          })
+          .then(([newStore, newBranches, newProducts]) => {
+            if (newStore) setStore(newStore);
+            if (newBranches && newBranches.length > 0) {
+              setBranches(newBranches.sort((a, b) => b.createdAt - a.createdAt));
+            }
+            if (newProducts) {
+              setProducts(newProducts.sort((a, b) => b.createdAt - a.createdAt));
+            }
+          })
+          .catch(err => console.warn('[CloudSync] Background periodic sync failed:', err));
+      }
+    }, 30000);
+
+    return () => clearInterval(syncInterval);
+  }, [store?.id]);
 
   const addBranch = async (branch: Omit<Branch, 'id' | 'createdAt' | 'updatedAt' | 'businessId' | 'isDeleted'>) => {
     const businessId = store?.id || 'main_config';

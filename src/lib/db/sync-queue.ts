@@ -2,6 +2,14 @@
 
 import { dbUtil, STORES, SyncAction, StoreName } from './idb';
 
+export function getFirebaseRtdbUrl(): string {
+  const envUrl = (import.meta as any).env?.VITE_FIREBASE_RTDB_URL;
+  if (envUrl && envUrl.trim() !== '') {
+    return envUrl;
+  }
+  return "https://database-for-inventory-88e9f-default-rtdb.asia-southeast1.firebasedatabase.app/";
+}
+
 /**
  * Helper to fetch with an abort controller timeout, preventing hangs on slow/offline networks.
  */
@@ -137,17 +145,7 @@ export async function processQueue(): Promise<void> {
 
     // 2. --- BACKEND INTEGRATION POINT ---
     // Push each pending change to Firebase Realtime Database
-    const rawUrl = (import.meta as any).env?.VITE_FIREBASE_RTDB_URL;
-    if (!rawUrl) {
-      console.log('[CloudSync] No VITE_FIREBASE_RTDB_URL set. Skipping cloud push.');
-      // Remove from queue locally so they don't block
-      for (const action of batch) {
-        if (action.id) {
-          await markAsSynced(action.id);
-        }
-      }
-      return;
-    }
+    const rawUrl = getFirebaseRtdbUrl();
     const BASE_URL = rawUrl.replace(/\/$/, '');
 
     for (const action of batch) {
@@ -212,11 +210,7 @@ export async function pullSync(): Promise<void> {
     return;
   }
 
-  const rawUrl = (import.meta as any).env?.VITE_FIREBASE_RTDB_URL;
-  if (!rawUrl) {
-    console.log('[CloudSync] No VITE_FIREBASE_RTDB_URL set. Running in local-offline mode.');
-    return;
-  }
+  const rawUrl = getFirebaseRtdbUrl();
   const BASE_URL = rawUrl.replace(/\/$/, '');
   
   // We sync all stores except the sync_queue itself
@@ -381,7 +375,7 @@ export async function clearDatabaseAll(): Promise<void> {
   }
 
   // 2. Clear remote Firebase Realtime Database for those stores
-  const rawUrl = (import.meta as any).env?.VITE_FIREBASE_RTDB_URL;
+  const rawUrl = getFirebaseRtdbUrl();
   const BASE_URL = rawUrl ? rawUrl.replace(/\/$/, '') : null;
   
   if (BASE_URL && typeof window !== 'undefined' && window.navigator.onLine) {
