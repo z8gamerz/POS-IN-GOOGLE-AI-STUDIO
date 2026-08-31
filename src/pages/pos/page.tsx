@@ -54,7 +54,7 @@ export default function POSPage() {
   const { currentBranchId, currentBranch, loading: loadingBranches } = useBranches();
   const { store, getNextORNumber, products, addProduct } = useStore();
   const { updateProduct, refresh } = useProducts(currentBranchId || undefined);
-  const { cart, addToCart, updateQuantity, removeFromCart, clearCart, total } = useCart();
+  const { cart, addToCart, updateQuantity, setQuantity, removeFromCart, clearCart, total } = useCart();
   const { addTransaction } = useTransactions(currentBranchId || undefined);
   const { currentTicket, rotateTicket } = useTicket(currentBranchId || undefined);
   const { addTransaction: addEWalletTransaction } = useEWallet(currentBranchId || undefined);
@@ -601,6 +601,7 @@ export default function POSPage() {
                       key={item.productId} 
                       item={item} 
                       onUpdateQuantity={updateQuantity} 
+                      onSetQuantity={setQuantity}
                       onRemove={removeFromCart} 
                     />
                   ))
@@ -677,6 +678,7 @@ export default function POSPage() {
                           key={item.productId} 
                           item={item} 
                           onUpdateQuantity={updateQuantity} 
+                          onSetQuantity={setQuantity}
                           onRemove={removeFromCart} 
                         />
                       ))

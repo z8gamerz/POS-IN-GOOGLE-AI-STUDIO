@@ -51,6 +51,21 @@ export function useCart() {
     );
   }, []);
 
+  const setQuantity = useCallback((productId: string, newQuantity: number) => {
+    setCart((prev) =>
+      prev
+        .map((item) => {
+          if (item.productId === productId) {
+            const parsed = isNaN(newQuantity) ? 0 : newQuantity;
+            const validQty = item.isWeightBased ? parseFloat(parsed.toFixed(3)) : Math.round(parsed);
+            return { ...item, quantity: Math.max(0, validQty) };
+          }
+          return item;
+        })
+        .filter((item) => item.quantity > 0)
+    );
+  }, []);
+
   const clearCart = useCallback(() => {
     setCart([]);
   }, []);
@@ -62,6 +77,7 @@ export function useCart() {
     addToCart,
     removeFromCart,
     updateQuantity,
+    setQuantity,
     clearCart,
     total,
   };

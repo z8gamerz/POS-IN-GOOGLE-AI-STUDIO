@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { TransactionItem } from '@/lib/db/idb';
 import { Plus, Minus, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -7,6 +8,7 @@ import { motion } from 'motion/react';
 interface CartItemProps {
   item: TransactionItem;
   onUpdateQuantity: (productId: string, delta: number) => void;
+  onSetQuantity?: (productId: string, quantity: number) => void;
   onRemove: (productId: string) => void;
 }
 
@@ -60,8 +62,45 @@ const getCartItemEmojiAndBg = (nameStr: string) => {
   };
 };
 
-export function CartItem({ item, onUpdateQuantity, onRemove }: CartItemProps) {
+export function CartItem({ item, onUpdateQuantity, onSetQuantity, onRemove }: CartItemProps) {
   const { emoji, bg } = getCartItemEmojiAndBg(item.name);
+  const [inputValue, setInputValue] = useState<string>(item.quantity.toString());
+
+  useEffect(() => {
+    setInputValue(item.quantity.toString());
+  }, [item.quantity]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInputValue(val);
+
+    const parsed = parseFloat(val);
+    if (!isNaN(parsed) && parsed > 0) {
+      if (onSetQuantity) {
+        onSetQuantity(item.productId, parsed);
+      } else {
+        const delta = parsed - item.quantity;
+        onUpdateQuantity(item.productId, delta);
+      }
+    }
+  };
+
+  const handleBlur = () => {
+    const parsed = parseFloat(inputValue);
+    if (isNaN(parsed) || parsed <= 0) {
+      // If cleared or zero, revert to 1 or current quantity
+      setInputValue('1');
+      if (onSetQuantity) {
+        onSetQuantity(item.productId, 1);
+      }
+    } else {
+      const formatted = item.isWeightBased ? parseFloat(parsed.toFixed(3)) : Math.round(parsed);
+      setInputValue(formatted.toString());
+      if (onSetQuantity) {
+        onSetQuantity(item.productId, formatted);
+      }
+    }
+  };
 
   return (
     <motion.div
@@ -92,19 +131,45 @@ export function CartItem({ item, onUpdateQuantity, onRemove }: CartItemProps) {
       </div>
       
       <div className="flex items-center justify-between xs:justify-end gap-2 pt-2 xs:pt-0 border-t xs:border-t-0 border-gray-50 shrink-0">
-        <div className="flex items-center gap-1 bg-gray-50 rounded-xl p-1 border border-gray-100 shrink-0">
+        <div className="flex items-center gap-1 bg-gray-50 rounded-xl p-1 border border-gray-200/80 shadow-inner shrink-0">
           <button 
             onClick={() => onUpdateQuantity(item.productId, -1)}
-            className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg transition-all active:scale-90 text-gray-500 hover:text-gray-900"
+            className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg transition-all active:scale-90 text-gray-500 hover:text-gray-900 cursor-pointer"
+            title="Decrease quantity"
           >
             <Minus className="w-3.5 h-3.5" />
           </button>
-          <span className={`text-center font-black text-gray-900 text-xs shrink-0 ${item.isWeightBased ? 'w-16' : 'w-7'}`}>
-            {item.isWeightBased ? `${item.quantity.toFixed(3)} kg` : item.quantity}
-          </span>
+          
+          <div className="relative flex items-center justify-center">
+            <input
+              type="number"
+              step={item.isWeightBased ? "0.001" : "1"}
+              min="1"
+              value={inputValue}
+              onChange={handleInputChange}
+              onBlur={handleBlur}
+              onFocus={(e) => e.target.select()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur();
+                }
+              }}
+              title="Click or tap to directly edit quantity"
+              className={`text-center font-black text-gray-900 text-xs bg-white border border-gray-200 hover:border-orange-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 rounded-lg py-1 px-1 outline-none transition-all ${
+                item.isWeightBased ? 'w-16' : 'w-12'
+              }`}
+            />
+            {item.isWeightBased && (
+              <span className="absolute right-1 text-[9px] font-bold text-gray-400 pointer-events-none">
+                kg
+              </span>
+            )}
+          </div>
+
           <button 
             onClick={() => onUpdateQuantity(item.productId, 1)}
-            className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg transition-all active:scale-90 text-gray-500 hover:text-gray-900"
+            className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg transition-all active:scale-90 text-gray-500 hover:text-gray-900 cursor-pointer"
+            title="Increase quantity"
           >
             <Plus className="w-3.5 h-3.5" />
           </button>
@@ -112,7 +177,8 @@ export function CartItem({ item, onUpdateQuantity, onRemove }: CartItemProps) {
         
         <button 
           onClick={() => onRemove(item.productId)}
-          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-90 shrink-0"
+          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-90 shrink-0 cursor-pointer"
+          title="Remove item"
         >
           <Trash2 className="w-4 h-4" />
         </button>
