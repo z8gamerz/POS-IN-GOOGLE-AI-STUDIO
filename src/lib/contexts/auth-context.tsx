@@ -39,12 +39,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        // Pull latest users and store info from Firebase Cloud on initial app load
-        if (typeof window !== 'undefined' && window.navigator.onLine) {
-          await pullStore(STORES.USERS);
-          await pullStore(STORES.STORE_INFO);
-        }
-
         const savedUserId = localStorage.getItem('pos-user-id');
         if (savedUserId) {
           const userData = await userService.getById(savedUserId);
@@ -60,6 +54,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } finally {
         setLoading(false);
       }
+
+      // Non-blocking background sync of user and store profiles
+      if (typeof window !== 'undefined' && window.navigator.onLine) {
+        pullStore(STORES.USERS).catch(() => {});
+        pullStore(STORES.STORE_INFO).catch(() => {});
+      }
     };
     
     initAuth();
@@ -68,12 +68,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     const normalizedEmail = email.trim().toLowerCase();
 
-    // 1. Fetch latest user credentials directly from Firebase Cloud first so other devices can log in instantly
-    if (typeof window !== 'undefined' && window.navigator.onLine) {
+    // Check local database first for instant login
+    let users = await userService.getAll();
+    let foundUser = users.find(u => u.email.trim().toLowerCase() === normalizedEmail);
+
+    // If not found locally, fetch latest users from Firebase Cloud with a fast timeout
+    if (!foundUser && typeof window !== 'undefined' && window.navigator.onLine) {
       try {
         const rawUrl = getFirebaseRtdbUrl();
         const BASE_URL = rawUrl.replace(/\/$/, '');
-        const res = await fetch(`${BASE_URL}/users.json`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2500);
+        const res = await fetch(`${BASE_URL}/users.json`, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (res.ok) {
           const cloudData = await res.json();
           if (cloudData) {
@@ -86,13 +93,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch (cloudErr) {
-        console.warn('[Auth] Direct cloud user fetch notice:', cloudErr);
+        console.warn('[Auth] Cloud user check note:', cloudErr);
       }
-      await pullStore(STORES.USERS);
+      users = await userService.getAll();
+      foundUser = users.find(u => u.email.trim().toLowerCase() === normalizedEmail);
     }
-
-    const users = await userService.getAll();
-    const foundUser = users.find(u => u.email.trim().toLowerCase() === normalizedEmail);
     
     if (!foundUser) {
       if (users.length === 0) {
@@ -102,7 +107,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const hashedPassword = await hashPassword(password);
-    // Also allow raw password comparison as fallback in case a legacy record was saved without hash
     const isPasswordMatch = (foundUser.passwordHash === hashedPassword) || (foundUser.passwordHash === password);
     
     if (!isPasswordMatch) {
@@ -113,17 +117,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(userWithoutPassword);
     localStorage.setItem('pos-user-id', foundUser.id);
 
-    // 2. Automatically pull ALL store data from Firebase Cloud immediately upon login
-    try {
-      if (typeof window !== 'undefined' && window.navigator.onLine) {
-        await pullSync();
-        await processQueue();
-      }
-    } catch (syncErr) {
-      console.warn('[CloudSync] Post-login sync warning:', syncErr);
+    // Trigger non-blocking full sync in the background so the user is immediately redirected without waiting
+    if (typeof window !== 'undefined' && window.navigator.onLine) {
+      pullSync().then(() => processQueue()).catch((syncErr) => {
+        console.warn('[CloudSync] Post-login background sync note:', syncErr);
+      });
     }
 
-    await auditService.log('USER_LOGIN', `User ${foundUser.email} logged in`, foundUser.email);
+    auditService.log('USER_LOGIN', `User ${foundUser.email} logged in`, foundUser.email).catch(() => {});
     router.push('/');
   };
 

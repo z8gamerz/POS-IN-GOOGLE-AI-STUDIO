@@ -11,8 +11,27 @@ export function getFirebaseRtdbUrl(): string {
 }
 
 /**
- * Pushes all existing local IndexedDB records to Firebase Realtime Database.
- * This guarantees that records created offline or prior to sync are fully uploaded to the cloud.
+ * Helper to fetch with an abort controller timeout, preventing hangs on slow/offline networks.
+ */
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 2500): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+}
+
+/**
+ * Pushes all existing local IndexedDB records to Firebase Realtime Database in parallel.
+ * This guarantees that records created offline or prior to sync are fully uploaded to the cloud quickly.
  */
 export async function pushAllLocalDataToCloud(): Promise<{ pushedCount: number; errors: number }> {
   if (typeof window !== 'undefined' && !window.navigator.onLine) {
@@ -22,7 +41,7 @@ export async function pushAllLocalDataToCloud(): Promise<{ pushedCount: number; 
   const rawUrl = getFirebaseRtdbUrl();
   const BASE_URL = rawUrl.replace(/\/$/, '');
   
-  const storesToPush = [
+  const storesToPush: StoreName[] = [
     STORES.STORE_INFO,
     STORES.BRANCHES,
     STORES.USERS,
@@ -42,56 +61,42 @@ export async function pushAllLocalDataToCloud(): Promise<{ pushedCount: number; 
   let pushedCount = 0;
   let errors = 0;
 
-  for (const store of storesToPush) {
-    try {
-      const items = await dbUtil.getItems<any>(store);
-      if (items.length === 0) continue;
+  await Promise.all(
+    storesToPush.map(async (store) => {
+      try {
+        const items = await dbUtil.getItems<any>(store);
+        if (items.length === 0) return;
 
-      for (const item of items) {
-        const key = item.id || item.key;
-        if (!key) continue;
-
-        const url = `${BASE_URL}/${store}/${key}.json`;
-        const res = await fetchWithTimeout(url, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(item)
-        });
-
-        if (res.ok) {
-          pushedCount++;
-        } else {
-          errors++;
-          console.warn(`[CloudSync] Push error for ${store}/${key}:`, res.statusText);
+        // Build a dictionary payload to PUT the entire store collection in ONE single HTTP request
+        const dictionary: Record<string, any> = {};
+        for (const item of items) {
+          const key = item.id || item.key;
+          if (key) {
+            dictionary[key] = item;
+          }
         }
+
+        if (Object.keys(dictionary).length > 0) {
+          const url = `${BASE_URL}/${store}.json`;
+          const res = await fetchWithTimeout(url, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dictionary)
+          }, 3000);
+
+          if (res.ok) {
+            pushedCount += Object.keys(dictionary).length;
+          } else {
+            errors++;
+          }
+        }
+      } catch (err) {
+        errors++;
       }
-    } catch (err) {
-      errors++;
-      console.warn(`[CloudSync] Error pushing store ${store}:`, err);
-    }
-  }
+    })
+  );
 
-  console.log(`[CloudSync] pushAllLocalDataToCloud completed. Pushed: ${pushedCount}, Errors: ${errors}`);
   return { pushedCount, errors };
-}
-
-/**
- * Helper to fetch with an abort controller timeout, preventing hangs on slow/offline networks.
- */
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 4000): Promise<Response> {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal
-    });
-    clearTimeout(id);
-    return response;
-  } catch (error) {
-    clearTimeout(id);
-    throw error;
-  }
 }
 
 /**
@@ -348,63 +353,58 @@ export async function pullSync(): Promise<void> {
     STORES.CATEGORIES
   ];
 
-  console.log('[CloudSync] Starting full pull sync from Firebase RTDB...');
+  console.log('[CloudSync] Starting parallel pull sync from Firebase RTDB...');
   let unauthorizedCount = 0;
 
-  for (const store of storesToSync) {
-    try {
-      const url = `${BASE_URL}/${store}.json`;
-      const response = await fetchWithTimeout(url);
-      if (!response.ok) {
-        console.warn(`[CloudSync] Failed to fetch store ${store}:`, response.statusText);
-        if (response.status === 401 || response.status === 403 || response.statusText === 'Unauthorized') {
-          unauthorizedCount++;
+  await Promise.all(
+    storesToSync.map(async (store) => {
+      try {
+        const url = `${BASE_URL}/${store}.json`;
+        const response = await fetchWithTimeout(url, {}, 2500);
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403 || response.statusText === 'Unauthorized') {
+            unauthorizedCount++;
+          }
+          return;
         }
-        continue;
-      }
 
-      const data = await response.json();
-      if (!data) {
-        console.log(`[CloudSync] Store ${store} is empty on Firebase.`);
-        continue;
-      }
+        const data = await response.json();
+        if (!data) return;
 
-      // Firebase returns { id1: item1, id2: item2 } or an array of items if IDs are numeric indexes
-      const cloudItems: any[] = Array.isArray(data) 
-        ? data.filter(Boolean)
-        : Object.values(data);
+        // Firebase returns { id1: item1, id2: item2 } or an array of items if IDs are numeric indexes
+        const cloudItems: any[] = Array.isArray(data) 
+          ? data.filter(Boolean)
+          : Object.values(data);
 
-      console.log(`[CloudSync] Pulled ${cloudItems.length} items from cloud for store: ${store}`);
+        for (const cloudItem of cloudItems) {
+          const key = cloudItem.id || cloudItem.key;
+          if (!key) continue;
 
-      for (const cloudItem of cloudItems) {
-        const key = cloudItem.id || cloudItem.key;
-        if (!key) continue;
+          // Fetch local item to compare
+          const localItem = await dbUtil.getItemById<any>(store, key);
 
-        // Fetch local item to compare
-        const localItem = await dbUtil.getItemById<any>(store, key);
-
-        if (!localItem) {
-          // Item doesn't exist locally, save it
-          await dbUtil.updateItem(store, cloudItem);
-        } else {
-          // Compare updatedAt
-          const cloudUpdatedAt = cloudItem.updatedAt || 0;
-          const localUpdatedAt = localItem.updatedAt || 0;
-
-          if (cloudUpdatedAt > localUpdatedAt) {
-            // Cloud has newer data, update local
+          if (!localItem) {
+            // Item doesn't exist locally, save it
             await dbUtil.updateItem(store, cloudItem);
-          } else if (localUpdatedAt > cloudUpdatedAt) {
-            // Local has newer data, queue it for push
-            console.log(`[CloudSync] Local item ${key} in ${store} is newer. Will push to cloud.`);
-            await queueAction(store, 'UPDATE', localItem);
+          } else {
+            // Compare updatedAt
+            const cloudUpdatedAt = cloudItem.updatedAt || 0;
+            const localUpdatedAt = localItem.updatedAt || 0;
+
+            if (cloudUpdatedAt > localUpdatedAt) {
+              // Cloud has newer data, update local
+              await dbUtil.updateItem(store, cloudItem);
+            } else if (localUpdatedAt > cloudUpdatedAt) {
+              // Local has newer data, queue it for push
+              await queueAction(store, 'UPDATE', localItem);
+            }
           }
         }
+      } catch (error) {
+        // Silently handle store fetch timeout without blocking
       }
-    } catch (error) {
-      console.warn(`[CloudSync] Error syncing store ${store}:`, error);
-    }
-  }
+    })
+  );
 
   if (unauthorizedCount > 0) {
     if (typeof window !== 'undefined') {

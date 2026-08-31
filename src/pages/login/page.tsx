@@ -2,8 +2,8 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { motion } from 'motion/react';
-import { Store, Mail, Lock, Loader2, ArrowRight, Cloud, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Store, Mail, Lock, Loader2, ArrowRight, Cloud, CheckCircle2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 
@@ -62,11 +62,20 @@ function LoginContent() {
 
         <div className="bg-white rounded-[3rem] p-8 md:p-12 shadow-2xl border border-gray-100">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="bg-red-50 text-red-600 p-4 rounded-2xl text-xs font-black uppercase tracking-widest border border-red-100">
-                {error}
-              </div>
-            )}
+            <AnimatePresence mode="wait">
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                  transition={{ duration: 0.22, ease: "easeOut" }}
+                  className="bg-red-50/90 text-red-700 p-4 rounded-2xl text-xs font-bold border border-red-200/80 flex items-start gap-3 shadow-xs"
+                >
+                  <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                  <div className="flex-1 leading-relaxed">{error}</div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <div className="space-y-2">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Email Address</label>

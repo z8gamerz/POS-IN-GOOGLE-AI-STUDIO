@@ -41,19 +41,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const loadStore = async () => {
     try {
-      // Sync with Firebase Realtime Database first if online so cross-device data is loaded
-      if (typeof window !== 'undefined' && window.navigator.onLine) {
-        try {
-          // 1. Push any local records that might not be in cloud yet
-          await pushAllLocalDataToCloud();
-          // 2. Pull remote updates
-          await pullSync();
-          await processQueue();
-        } catch (syncErr) {
-          console.warn('[CloudSync] Initial sync attempt notice:', syncErr);
-        }
-      }
-
+      // 1. Immediately load local store data from IndexedDB
       const currentStore = await storeService.getStore();
       if (currentStore) {
         setStore(currentStore);
@@ -63,23 +51,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const businessId = currentStore?.id || 'main_config';
       let activeBranches = await branchService.getByBusiness(businessId);
       
-      // Auto-create Main Branch only if genuinely none exists (locally or in cloud)
-      if (activeBranches.length === 0 && currentStore) {
-        const id = crypto.randomUUID();
-        const now = Date.now();
-        const mainBranch: Branch = {
-          id,
-          name: 'Main Branch',
-          address: currentStore?.address || 'Main Address',
-          businessId,
-          createdAt: now,
-          updatedAt: now,
-          isDeleted: false,
-        };
-        await branchService.create(mainBranch);
-        activeBranches = [mainBranch];
-        await auditService.log('BRANCH_AUTO_CREATE', JSON.stringify({ name: 'Main Branch', id }));
-      }
+      // Deduplicate active branches (prevent duplicate "Main Branch"es)
+      const seenNames = new Set<string>();
+      activeBranches = activeBranches.filter(b => {
+        if (b.isDeleted) return false;
+        const normalizedName = b.name.trim().toLowerCase();
+        if (seenNames.has(normalizedName)) return false;
+        seenNames.add(normalizedName);
+        return true;
+      });
 
       setBranches(activeBranches.sort((a, b) => b.createdAt - a.createdAt));
 
@@ -100,7 +80,41 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Failed to load store info:', error);
     } finally {
+      // Release loading spinner immediately (sub-10ms)
       setLoading(false);
+    }
+
+    // 2. Perform background cloud synchronization without blocking the screen
+    if (typeof window !== 'undefined' && window.navigator.onLine) {
+      (async () => {
+        try {
+          await pushAllLocalDataToCloud();
+          await pullSync();
+          await processQueue();
+
+          // Refresh state with latest cloud sync data
+          const currentStore = await storeService.getStore();
+          if (currentStore) setStore(currentStore);
+          const businessId = currentStore?.id || 'main_config';
+          const rawBranches = await branchService.getByBusiness(businessId);
+          const freshNames = new Set<string>();
+          const freshBranches = rawBranches.filter(b => {
+            if (b.isDeleted) return false;
+            const normalized = b.name.trim().toLowerCase();
+            if (freshNames.has(normalized)) return false;
+            freshNames.add(normalized);
+            return true;
+          });
+
+          if (freshBranches.length > 0) {
+            setBranches(freshBranches.sort((a, b) => b.createdAt - a.createdAt));
+          }
+          const freshProducts = await productService.getAll();
+          setProducts(freshProducts.sort((a, b) => b.createdAt - a.createdAt));
+        } catch (syncErr) {
+          console.warn('[CloudSync] Background store sync notice:', syncErr);
+        }
+      })();
     }
   };
 
@@ -124,7 +138,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           .then(([newStore, newBranches, newProducts]) => {
             if (newStore) setStore(newStore);
             if (newBranches && newBranches.length > 0) {
-              setBranches(newBranches.sort((a, b) => b.createdAt - a.createdAt));
+              const periodicNames = new Set<string>();
+              const filtered = newBranches.filter(b => {
+                if (b.isDeleted) return false;
+                const normalized = b.name.trim().toLowerCase();
+                if (periodicNames.has(normalized)) return false;
+                periodicNames.add(normalized);
+                return true;
+              });
+              setBranches(filtered.sort((a, b) => b.createdAt - a.createdAt));
             }
             if (newProducts) {
               setProducts(newProducts.sort((a, b) => b.createdAt - a.createdAt));
