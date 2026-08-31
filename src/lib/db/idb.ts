@@ -32,6 +32,7 @@ export type Product = {
   category: string;
   branchId: string; // Reference to Branch
   barcode?: string;
+  imageUrl?: string; // Product image URL
   isWeightBased?: boolean; // Added for weight-based sales
   lowStockThreshold?: number; // Custom threshold for low stock alert
   createdAt: number;
@@ -45,6 +46,7 @@ export type TransactionItem = {
   price: number;
   costPrice: number; // Added for profit tracking (cost at time of sale)
   quantity: number;
+  imageUrl?: string; // Product image URL
   isWeightBased?: boolean;
 };
 

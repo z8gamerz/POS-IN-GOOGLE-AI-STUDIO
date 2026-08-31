@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Product } from '@/lib/db/idb';
 import { Plus } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -250,6 +251,9 @@ const getProductEmojiAndBg = (product: { name: string; category: string }) => {
 export function ProductCard({ product, onAdd }: ProductCardProps) {
   const isOutOfStock = product.stock <= 0;
   const { emoji, bg } = getProductEmojiAndBg(product);
+  const [imageError, setImageError] = useState(false);
+
+  const hasImage = product.imageUrl && !imageError;
 
   return (
     <motion.button
@@ -261,9 +265,19 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
       }`}
     >
       {/* Product Image/Emoji Area */}
-      <div className={`w-full h-28 ${bg} rounded-2xl mb-4 flex items-center justify-center text-5xl transition-transform group-hover:scale-105 duration-300 relative overflow-hidden`}>
-        <span className="relative z-10">{emoji}</span>
-        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <div className={`w-full h-28 ${bg} rounded-2xl mb-4 flex items-center justify-center transition-transform group-hover:scale-105 duration-300 relative overflow-hidden`}>
+        {hasImage ? (
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            referrerPolicy="no-referrer"
+            onError={() => setImageError(true)}
+            className="w-full h-full object-contain p-2 relative z-10"
+          />
+        ) : (
+          <span className="relative z-10 text-5xl">{emoji}</span>
+        )}
+        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
       </div>
 
       <div className="flex-1 flex flex-col justify-between">

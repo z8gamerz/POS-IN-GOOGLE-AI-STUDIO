@@ -26,6 +26,7 @@ export function useCart() {
           price: product.price,
           costPrice: product.cost || 0,
           quantity: quantityOverride !== undefined ? quantityOverride : 1,
+          imageUrl: product.imageUrl,
           isWeightBased: product.isWeightBased,
         },
       ];

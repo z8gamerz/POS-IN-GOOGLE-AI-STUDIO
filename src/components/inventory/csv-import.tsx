@@ -17,6 +17,7 @@ interface ValidatedProduct {
   cost: number;
   category: string;
   stock: number;
+  imageUrl?: string;
 }
 
 interface ImportError {
@@ -30,6 +31,7 @@ interface FieldMapping {
   cost: string;
   category: string;
   stock: string;
+  imageUrl: string;
 }
 
 export function CsvImport({ onImport, onClose }: CsvImportProps) {
@@ -41,7 +43,8 @@ export function CsvImport({ onImport, onClose }: CsvImportProps) {
     price: '',
     cost: '',
     category: '',
-    stock: ''
+    stock: '',
+    imageUrl: ''
   });
   const [parsedData, setParsedData] = useState<ValidatedProduct[]>([]);
   const [errors, setErrors] = useState<ImportError[]>([]);
@@ -69,6 +72,7 @@ export function CsvImport({ onImport, onClose }: CsvImportProps) {
             if (lower.includes('cost') || lower === 'purchase price') newMapping.cost = h;
             if (lower.includes('category') || lower === 'type') newMapping.category = h;
             if (lower.includes('stock') || lower.includes('qty') || lower === 'quantity') newMapping.stock = h;
+            if (lower.includes('image') || lower.includes('photo') || lower.includes('picture') || lower.includes('url')) newMapping.imageUrl = h;
           });
           setMapping(newMapping);
           setStep('mapping');
@@ -92,6 +96,7 @@ export function CsvImport({ onImport, onClose }: CsvImportProps) {
       const cost = parseFloat(row[mapping.cost]?.toString().replace(/[^0-9.]/g, '') || '0');
       const category = row[mapping.category]?.toString().trim() || 'Uncategorized';
       const stock = parseInt(row[mapping.stock]?.toString() || '0', 10);
+      const imageUrl = mapping.imageUrl ? row[mapping.imageUrl]?.toString().trim() : undefined;
 
       if (!name) {
         validationErrors.push({ row: rowNum, message: 'Missing product name' });
@@ -108,7 +113,8 @@ export function CsvImport({ onImport, onClose }: CsvImportProps) {
         price,
         cost: isNaN(cost) ? 0 : cost,
         category,
-        stock: isNaN(stock) ? 0 : stock
+        stock: isNaN(stock) ? 0 : stock,
+        imageUrl: imageUrl || undefined
       });
     });
 
@@ -223,10 +229,10 @@ export function CsvImport({ onImport, onClose }: CsvImportProps) {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {(['name', 'price', 'cost', 'category', 'stock'] as const).map((field) => (
+                  {(['name', 'price', 'cost', 'category', 'stock', 'imageUrl'] as const).map((field) => (
                     <div key={field} className="space-y-2">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">
-                        {field} {['name', 'price'].includes(field) && <span className="text-red-500">*</span>}
+                        {field === 'imageUrl' ? 'Image URL (Optional)' : field} {['name', 'price'].includes(field) && <span className="text-red-500">*</span>}
                       </label>
                       <select
                         value={mapping[field]}

@@ -65,6 +65,9 @@ const getCartItemEmojiAndBg = (nameStr: string) => {
 export function CartItem({ item, onUpdateQuantity, onSetQuantity, onRemove }: CartItemProps) {
   const { emoji, bg } = getCartItemEmojiAndBg(item.name);
   const [inputValue, setInputValue] = useState<string>(item.quantity.toString());
+  const [imageError, setImageError] = useState(false);
+
+  const hasImage = item.imageUrl && !imageError;
 
   useEffect(() => {
     setInputValue(item.quantity.toString());
@@ -111,8 +114,18 @@ export function CartItem({ item, onUpdateQuantity, onSetQuantity, onRemove }: Ca
       className="p-4 bg-white rounded-3xl border-2 border-gray-100/80 shadow-sm hover:shadow-md transition-all flex flex-col xs:flex-row xs:items-center gap-3"
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div className={`w-11 h-11 ${bg} rounded-xl flex items-center justify-center text-xl shrink-0`}>
-          {emoji}
+        <div className={`w-11 h-11 ${bg} rounded-xl flex items-center justify-center shrink-0 overflow-hidden border border-gray-100`}>
+          {hasImage ? (
+            <img
+              src={item.imageUrl}
+              alt={item.name}
+              referrerPolicy="no-referrer"
+              onError={() => setImageError(true)}
+              className="w-full h-full object-contain p-0.5"
+            />
+          ) : (
+            <span className="text-xl">{emoji}</span>
+          )}
         </div>
         
         <div className="flex-1 min-w-0">

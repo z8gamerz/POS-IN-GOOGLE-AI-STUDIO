@@ -88,7 +88,10 @@ export default function ProductsPage() {
     const exportData = filteredProducts.map(p => ({
       name: p.name,
       price: p.price,
+      cost: p.cost || 0,
+      category: p.category,
       qty: p.stock,
+      imageUrl: p.imageUrl || '',
       total: p.price * p.stock,
       date: new Date(p.createdAt).toLocaleDateString()
     }));
