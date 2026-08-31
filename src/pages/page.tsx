@@ -34,7 +34,7 @@ interface ActionMenuItem extends BaseMenuItem {
 
 type MenuItem = LinkMenuItem | ActionMenuItem;
 
-export default function Home() {
+function HomeContent() {
   const { store, loading } = useStore();
   const { isCashier } = useAuth();
   const [showSyncError, setShowSyncError] = useState(false);
@@ -162,9 +162,8 @@ export default function Home() {
   const filteredItems = menuItems.filter(item => !item.adminOnly || !isCashier);
 
   return (
-    <AuthGuard>
-      <main className="min-h-screen bg-gray-50 font-sans">
-        <Header />
+    <main className="min-h-screen bg-gray-50 font-sans">
+      <Header />
         
         <div className="p-6 md:p-12 max-w-7xl mx-auto">
           <AnimatePresence>
@@ -341,6 +340,13 @@ export default function Home() {
           </div>
         </div>
       </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <AuthGuard>
+      <HomeContent />
     </AuthGuard>
   );
 }

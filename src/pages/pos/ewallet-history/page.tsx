@@ -22,8 +22,9 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { EWalletTransaction } from '@/lib/db/idb';
+import { AuthGuard } from '@/components/auth/auth-guard';
 
-export default function EWalletHistoryPage() {
+function EWalletHistoryContent() {
   const { currentBranchId, currentBranch } = useBranches();
   const { transactions, loading } = useEWallet(currentBranchId || undefined);
   const { showReceipt } = useReceipt();
@@ -231,5 +232,13 @@ export default function EWalletHistoryPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function EWalletHistoryPage() {
+  return (
+    <AuthGuard>
+      <EWalletHistoryContent />
+    </AuthGuard>
   );
 }

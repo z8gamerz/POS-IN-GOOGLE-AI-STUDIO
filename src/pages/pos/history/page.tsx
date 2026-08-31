@@ -23,8 +23,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Transaction } from '@/lib/db/idb';
 import { useEffect } from 'react';
 import Papa from 'papaparse';
+import { AuthGuard } from '@/components/auth/auth-guard';
 
-export default function TicketHistoryPage() {
+function TicketHistoryContent() {
   const { currentBranchId, currentBranch } = useBranches();
   const { transactions, loading } = useTransactions(currentBranchId || undefined);
   const { showReceipt } = useReceipt();
@@ -266,5 +267,13 @@ export default function TicketHistoryPage() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function TicketHistoryPage() {
+  return (
+    <AuthGuard>
+      <TicketHistoryContent />
+    </AuthGuard>
   );
 }

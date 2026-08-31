@@ -8,22 +8,25 @@ import { Loader2 } from 'lucide-react';
 interface AuthGuardProps {
   children: React.ReactNode;
   allowedRoles?: ('admin' | 'cashier')[];
+  requireAdmin?: boolean;
 }
 
-export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
+export function AuthGuard({ children, allowedRoles, requireAdmin }: AuthGuardProps) {
   const { user, loading, isAdmin } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+
+  const effectiveAllowedRoles = requireAdmin ? ['admin' as const] : allowedRoles;
 
   useEffect(() => {
     if (!loading) {
       if (!user) {
         router.push(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
-      } else if (allowedRoles && !allowedRoles.includes(user.role)) {
+      } else if (effectiveAllowedRoles && !effectiveAllowedRoles.includes(user.role)) {
         router.push('/'); // Redirect to home if role not allowed
       }
     }
-  }, [user, loading, router, pathname, allowedRoles]);
+  }, [user, loading, router, pathname, effectiveAllowedRoles]);
 
   if (loading) {
     return (
@@ -35,7 +38,7 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
   }
 
   if (!user) return null;
-  if (allowedRoles && !allowedRoles.includes(user.role)) return null;
+  if (effectiveAllowedRoles && !effectiveAllowedRoles.includes(user.role)) return null;
 
   return <>{children}</>;
 }

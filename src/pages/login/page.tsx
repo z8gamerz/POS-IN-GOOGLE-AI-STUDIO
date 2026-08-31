@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { motion } from 'motion/react';
-import { Store, Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
+import { Store, Mail, Lock, Loader2, ArrowRight, Cloud, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 
@@ -12,22 +12,31 @@ function LoginContent() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login } = useAuth();
+  const [syncStatusText, setSyncStatusText] = useState('');
+  const { user, login, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.push(callbackUrl);
+    }
+  }, [user, authLoading, callbackUrl, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsSubmitting(true);
+    setSyncStatusText('Verifying account & fetching cloud data...');
     try {
       await login(email, password);
+      setSyncStatusText('Sync complete! Loading POS...');
       router.push(callbackUrl);
     } catch (err: any) {
       setError(err.message || 'Failed to login');
-    } finally {
       setIsSubmitting(false);
+      setSyncStatusText('');
     }
   };
 
@@ -44,6 +53,11 @@ function LoginContent() {
           </div>
           <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase">Welcome Back</h1>
           <p className="text-gray-500 font-medium">Login to your POS account</p>
+          
+          <div className="inline-flex items-center gap-2 mt-3 px-3.5 py-1.5 bg-emerald-50 text-emerald-700 rounded-full text-[11px] font-bold border border-emerald-200/60 shadow-xs">
+            <Cloud className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Multi-Device Cloud Sync Enabled</span>
+          </div>
         </div>
 
         <div className="bg-white rounded-[3rem] p-8 md:p-12 shadow-2xl border border-gray-100">
@@ -90,7 +104,10 @@ function LoginContent() {
               className="w-full bg-gray-900 hover:bg-black text-white font-black py-6 rounded-[2rem] flex items-center justify-center gap-4 shadow-2xl transition-all active:scale-95 disabled:opacity-50 disabled:scale-100 uppercase tracking-widest text-sm mt-8"
             >
               {isSubmitting ? (
-                <Loader2 className="w-6 h-6 animate-spin" />
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  <span className="text-xs normal-case">{syncStatusText || 'Logging in...'}</span>
+                </div>
               ) : (
                 <>
                   Login to POS <ArrowRight className="w-6 h-6" />

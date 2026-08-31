@@ -18,8 +18,9 @@ import Link from 'next/link';
 import { motion } from 'motion/react';
 import { format, startOfDay, endOfDay, isWithinInterval, parseISO } from 'date-fns';
 import Papa from 'papaparse';
+import { AuthGuard } from '@/components/auth/auth-guard';
 
-export default function SalesJournalPage() {
+function SalesJournalContent() {
   const { transactions, loading } = useTransactions();
   const { store } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
@@ -224,5 +225,13 @@ export default function SalesJournalPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function SalesJournalPage() {
+  return (
+    <AuthGuard>
+      <SalesJournalContent />
+    </AuthGuard>
   );
 }

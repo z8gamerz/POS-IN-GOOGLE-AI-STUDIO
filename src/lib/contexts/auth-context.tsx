@@ -1,10 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from '@/lib/db/idb';
+import { User, STORES, dbUtil } from '@/lib/db/idb';
 import { useRouter, usePathname } from 'next/navigation';
 import { userService } from '@/lib/services/user-service';
 import { auditService } from '@/lib/services/audit-service';
+import { pullSync, pullStore, processQueue, getFirebaseRtdbUrl } from '@/lib/db/sync-queue';
 
 export type UserRole = 'admin' | 'cashier';
 
@@ -37,9 +38,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initAuth = async () => {
-      const savedUserId = localStorage.getItem('pos-user-id');
-      if (savedUserId) {
-        try {
+      try {
+        // Pull latest users and store info from Firebase Cloud on initial app load
+        if (typeof window !== 'undefined' && window.navigator.onLine) {
+          await pullStore(STORES.USERS);
+          await pullStore(STORES.STORE_INFO);
+        }
+
+        const savedUserId = localStorage.getItem('pos-user-id');
+        if (savedUserId) {
           const userData = await userService.getById(savedUserId);
           if (userData) {
             const { passwordHash, ...userWithoutPassword } = userData;
@@ -47,79 +54,165 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else {
             localStorage.removeItem('pos-user-id');
           }
-        } catch (error) {
-          console.error('Failed to load user:', error);
         }
+      } catch (error) {
+        console.error('Failed to load user session:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     
     initAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // 1. Fetch latest user credentials directly from Firebase Cloud first so other devices can log in instantly
+    if (typeof window !== 'undefined' && window.navigator.onLine) {
+      try {
+        const rawUrl = getFirebaseRtdbUrl();
+        const BASE_URL = rawUrl.replace(/\/$/, '');
+        const res = await fetch(`${BASE_URL}/users.json`);
+        if (res.ok) {
+          const cloudData = await res.json();
+          if (cloudData) {
+            const items: User[] = Array.isArray(cloudData) ? cloudData.filter(Boolean) : Object.values(cloudData);
+            for (const item of items) {
+              if (item && item.id) {
+                await dbUtil.updateItem(STORES.USERS, item);
+              }
+            }
+          }
+        }
+      } catch (cloudErr) {
+        console.warn('[Auth] Direct cloud user fetch notice:', cloudErr);
+      }
+      await pullStore(STORES.USERS);
+    }
+
     const users = await userService.getAll();
-    const foundUser = users.find(u => u.email === email);
+    const foundUser = users.find(u => u.email.trim().toLowerCase() === normalizedEmail);
     
     if (!foundUser) {
-      throw new Error('Invalid email or password');
+      if (users.length === 0) {
+        throw new Error('Walang nakitang user account sa cloud database. Siguraduhing na-click ang Cloud Sync sa primary device kung saan ginawa ang account, o mag-Sign Up muna bilang Admin.');
+      }
+      throw new Error(`Walang nakitang account para sa "${email}". Pakisuri ang spelling ng email o mag-sync sa primary device.`);
     }
 
     const hashedPassword = await hashPassword(password);
-    if (foundUser.passwordHash !== hashedPassword) {
-      throw new Error('Invalid email or password');
+    // Also allow raw password comparison as fallback in case a legacy record was saved without hash
+    const isPasswordMatch = (foundUser.passwordHash === hashedPassword) || (foundUser.passwordHash === password);
+    
+    if (!isPasswordMatch) {
+      throw new Error('Maling password. Pakisuri ang inyong password at subukan muli.');
     }
 
     const { passwordHash, ...userWithoutPassword } = foundUser;
     setUser(userWithoutPassword);
     localStorage.setItem('pos-user-id', foundUser.id);
-    await auditService.log('USER_LOGIN', `User ${email} logged in`, email);
+
+    // 2. Automatically pull ALL store data from Firebase Cloud immediately upon login
+    try {
+      if (typeof window !== 'undefined' && window.navigator.onLine) {
+        await pullSync();
+        await processQueue();
+      }
+    } catch (syncErr) {
+      console.warn('[CloudSync] Post-login sync warning:', syncErr);
+    }
+
+    await auditService.log('USER_LOGIN', `User ${foundUser.email} logged in`, foundUser.email);
     router.push('/');
   };
 
   const signup = async (name: string, email: string, password: string, role: UserRole) => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Ensure we have latest users from cloud before creating
+    if (typeof window !== 'undefined' && window.navigator.onLine) {
+      try {
+        const rawUrl = getFirebaseRtdbUrl();
+        const BASE_URL = rawUrl.replace(/\/$/, '');
+        const res = await fetch(`${BASE_URL}/users.json`);
+        if (res.ok) {
+          const cloudData = await res.json();
+          if (cloudData) {
+            const items: User[] = Array.isArray(cloudData) ? cloudData.filter(Boolean) : Object.values(cloudData);
+            for (const item of items) {
+              if (item && item.id) {
+                await dbUtil.updateItem(STORES.USERS, item);
+              }
+            }
+          }
+        }
+      } catch (e) {}
+      await pullStore(STORES.USERS);
+    }
+
     const users = await userService.getAll();
     
     // Check if any user exists
     if (users.length > 0) {
-      // If users exist, only an admin can create new users via management (not this signup page)
-      // But for this local simulation, we'll allow it if the user is an admin
+      // If users exist, only an admin can create new users via management
       if (user?.role !== 'admin') {
-        throw new Error('Only administrators can create new accounts.');
+        throw new Error('Mayroon nang registered admin account sa system. Mangyaring mag-log in na lamang gamit ang admin account.');
       }
     } else {
       // First user MUST be an admin
       if (role !== 'admin') {
-        throw new Error('The first user must be an administrator.');
+        throw new Error('Ang unang account na gagawin ay dapat Administrator.');
       }
     }
 
-    if (users.some(u => u.email === email)) {
-      throw new Error('Email already exists');
+    if (users.some(u => u.email.trim().toLowerCase() === normalizedEmail)) {
+      throw new Error('Naka-rehistro na ang email na ito. Mag-log in na lamang.');
     }
 
     const hashedPassword = await hashPassword(password);
-    const businessId = 'main_config'; // Default business ID for local simulation
+    const businessId = 'main_config'; // Default business ID
     const newUser: User = {
       id: crypto.randomUUID(),
-      name,
-      email,
+      name: name.trim(),
+      email: normalizedEmail,
       passwordHash: hashedPassword,
       role,
       businessId,
-      assignedBranchIds: [], // Admins have access to all, cashiers need assignment
+      assignedBranchIds: [], // Admins have access to all
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
 
     await userService.create(newUser);
-    await auditService.log('USER_SIGNUP', `User ${email} signed up as ${role}`, email);
+
+    // Direct immediate upload to Firebase Realtime Database
+    if (typeof window !== 'undefined' && window.navigator.onLine) {
+      try {
+        const rawUrl = getFirebaseRtdbUrl();
+        const BASE_URL = rawUrl.replace(/\/$/, '');
+        await fetch(`${BASE_URL}/users/${newUser.id}.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newUser)
+        });
+      } catch (err) {
+        console.warn('[Auth] Direct cloud push on signup notice:', err);
+      }
+    }
+
+    await processQueue();
+    await auditService.log('USER_SIGNUP', `User ${normalizedEmail} signed up as ${role}`, normalizedEmail);
     
     // Auto login after signup if it's the first user
     if (users.length === 0) {
       const { passwordHash, ...userWithoutPassword } = newUser;
       setUser(userWithoutPassword);
       localStorage.setItem('pos-user-id', newUser.id);
+      
+      if (typeof window !== 'undefined' && window.navigator.onLine) {
+        await pullSync();
+      }
       router.push('/');
     }
   };

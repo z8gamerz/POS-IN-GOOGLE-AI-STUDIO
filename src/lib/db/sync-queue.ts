@@ -11,6 +11,71 @@ export function getFirebaseRtdbUrl(): string {
 }
 
 /**
+ * Pushes all existing local IndexedDB records to Firebase Realtime Database.
+ * This guarantees that records created offline or prior to sync are fully uploaded to the cloud.
+ */
+export async function pushAllLocalDataToCloud(): Promise<{ pushedCount: number; errors: number }> {
+  if (typeof window !== 'undefined' && !window.navigator.onLine) {
+    return { pushedCount: 0, errors: 0 };
+  }
+
+  const rawUrl = getFirebaseRtdbUrl();
+  const BASE_URL = rawUrl.replace(/\/$/, '');
+  
+  const storesToPush = [
+    STORES.STORE_INFO,
+    STORES.BRANCHES,
+    STORES.USERS,
+    STORES.PRODUCTS,
+    STORES.CATEGORIES,
+    STORES.TRANSACTIONS,
+    STORES.CUSTOMERS,
+    STORES.CREDIT_LOG,
+    STORES.EWALLET_TRANSACTIONS,
+    STORES.SUPPLIERS,
+    STORES.RESTOCK_TRANSACTIONS,
+    STORES.EXPENSES,
+    STORES.AUDIT_LOGS,
+    STORES.METADATA
+  ];
+
+  let pushedCount = 0;
+  let errors = 0;
+
+  for (const store of storesToPush) {
+    try {
+      const items = await dbUtil.getItems<any>(store);
+      if (items.length === 0) continue;
+
+      for (const item of items) {
+        const key = item.id || item.key;
+        if (!key) continue;
+
+        const url = `${BASE_URL}/${store}/${key}.json`;
+        const res = await fetchWithTimeout(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item)
+        });
+
+        if (res.ok) {
+          pushedCount++;
+        } else {
+          errors++;
+          console.warn(`[CloudSync] Push error for ${store}/${key}:`, res.statusText);
+        }
+      }
+    } catch (err) {
+      errors++;
+      console.warn(`[CloudSync] Error pushing store ${store}:`, err);
+    }
+  }
+
+  console.log(`[CloudSync] pushAllLocalDataToCloud completed. Pushed: ${pushedCount}, Errors: ${errors}`);
+  return { pushedCount, errors };
+}
+
+/**
  * Helper to fetch with an abort controller timeout, preventing hangs on slow/offline networks.
  */
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 4000): Promise<Response> {
@@ -198,6 +263,58 @@ export async function processQueue(): Promise<void> {
       action.retryCount += 1;
       await dbUtil.updateItem(STORES.SYNC_QUEUE, action);
     }
+  }
+}
+
+/**
+ * Pulls a specific store from Firebase Realtime Database and merges locally.
+ */
+export async function pullStore(store: StoreName): Promise<number> {
+  if (typeof window !== 'undefined' && !window.navigator.onLine) {
+    return 0;
+  }
+
+  const rawUrl = getFirebaseRtdbUrl();
+  const BASE_URL = rawUrl.replace(/\/$/, '');
+
+  try {
+    const url = `${BASE_URL}/${store}.json`;
+    const response = await fetchWithTimeout(url);
+    if (!response.ok) {
+      console.warn(`[CloudSync] Failed to fetch store ${store}:`, response.statusText);
+      return 0;
+    }
+
+    const data = await response.json();
+    if (!data) return 0;
+
+    const cloudItems: any[] = Array.isArray(data)
+      ? data.filter(Boolean)
+      : Object.values(data);
+
+    let updatedCount = 0;
+    for (const cloudItem of cloudItems) {
+      const key = cloudItem.id || cloudItem.key;
+      if (!key) continue;
+
+      const localItem = await dbUtil.getItemById<any>(store, key);
+      if (!localItem) {
+        await dbUtil.updateItem(store, cloudItem);
+        updatedCount++;
+      } else {
+        const cloudUpdatedAt = cloudItem.updatedAt || 0;
+        const localUpdatedAt = localItem.updatedAt || 0;
+
+        if (cloudUpdatedAt >= localUpdatedAt) {
+          await dbUtil.updateItem(store, cloudItem);
+          updatedCount++;
+        }
+      }
+    }
+    return updatedCount;
+  } catch (error) {
+    console.warn(`[CloudSync] Error pulling store ${store}:`, error);
+    return 0;
   }
 }
 

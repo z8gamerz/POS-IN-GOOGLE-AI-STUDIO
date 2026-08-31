@@ -8,7 +8,7 @@ import { BranchSelector } from './branch-selector';
 import { BranchManagement } from '../branches/branch-management';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { pullSync, processQueue } from '@/lib/db/sync-queue';
+import { pullSync, processQueue, pushAllLocalDataToCloud } from '@/lib/db/sync-queue';
 import { useTheme } from '@/lib/contexts/theme-context';
 
 export function Header({ ticketNumber }: { ticketNumber?: string }) {
@@ -33,6 +33,7 @@ export function Header({ ticketNumber }: { ticketNumber?: string }) {
     setIsSyncing(true);
     setSyncSuccess(false);
     try {
+      await pushAllLocalDataToCloud();
       await pullSync();
       await processQueue();
       setSyncSuccess(true);

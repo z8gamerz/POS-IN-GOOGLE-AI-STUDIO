@@ -17,8 +17,9 @@ import {
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { format } from 'date-fns';
+import { AuthGuard } from '@/components/auth/auth-guard';
 
-export default function AuditTrailPage() {
+function AuditTrailContent() {
   const { logs, loading, refresh } = useAuditLogs();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterAction, setFilterAction] = useState<string>('all');
@@ -212,5 +213,13 @@ export default function AuditTrailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AuditTrailPage() {
+  return (
+    <AuthGuard requireAdmin>
+      <AuditTrailContent />
+    </AuthGuard>
   );
 }

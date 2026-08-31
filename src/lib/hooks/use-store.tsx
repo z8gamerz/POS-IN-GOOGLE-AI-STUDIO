@@ -6,7 +6,7 @@ import { storeService } from '@/lib/services/store-service';
 import { productService } from '@/lib/services/product-service';
 import { branchService } from '@/lib/services/branch-service';
 import { auditService } from '@/lib/services/audit-service';
-import { pullSync, processQueue } from '@/lib/db/sync-queue';
+import { pullSync, processQueue, pushAllLocalDataToCloud } from '@/lib/db/sync-queue';
 import { useAuth } from '@/lib/contexts/auth-context';
 
 const CURRENT_BRANCH_KEY = 'sarisari_current_branch_id';
@@ -14,6 +14,7 @@ const CURRENT_BRANCH_KEY = 'sarisari_current_branch_id';
 interface StoreContextType {
   store: StoreInfo | null;
   loading: boolean;
+  refreshStore: () => Promise<void>;
   updateStore: (name: string, address?: string, tin?: string, taxType?: 'VAT' | 'NON-VAT', vatRate?: number) => Promise<void>;
   getNextORNumber: () => Promise<string>;
   products: Product[];
@@ -40,12 +41,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const loadStore = async () => {
     try {
-      // Sync with Firebase Realtime Database in the background on startup
-      pullSync()
-        .then(() => processQueue())
-        .catch(syncError => {
-          console.warn('[CloudSync] Background startup sync bypassed:', syncError);
-        });
+      // Sync with Firebase Realtime Database first if online so cross-device data is loaded
+      if (typeof window !== 'undefined' && window.navigator.onLine) {
+        try {
+          // 1. Push any local records that might not be in cloud yet
+          await pushAllLocalDataToCloud();
+          // 2. Pull remote updates
+          await pullSync();
+          await processQueue();
+        } catch (syncErr) {
+          console.warn('[CloudSync] Initial sync attempt notice:', syncErr);
+        }
+      }
 
       const currentStore = await storeService.getStore();
       if (currentStore) {
@@ -56,8 +63,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const businessId = currentStore?.id || 'main_config';
       let activeBranches = await branchService.getByBusiness(businessId);
       
-      // Auto-create Main Branch if none exists
-      if (activeBranches.length === 0) {
+      // Auto-create Main Branch only if genuinely none exists (locally or in cloud)
+      if (activeBranches.length === 0 && currentStore) {
         const id = crypto.randomUUID();
         const now = Date.now();
         const mainBranch: Branch = {
@@ -128,7 +135,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }, 30000);
 
     return () => clearInterval(syncInterval);
-  }, [store?.id]);
+  }, [user?.id, store?.id]);
 
   const addBranch = async (branch: Omit<Branch, 'id' | 'createdAt' | 'updatedAt' | 'businessId' | 'isDeleted'>) => {
     const businessId = store?.id || 'main_config';
@@ -262,6 +269,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     <StoreContext.Provider value={{ 
       store, 
       loading, 
+      refreshStore: loadStore,
       updateStore, 
       getNextORNumber, 
       products: filteredProducts, 

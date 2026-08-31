@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { User } from '@/lib/db/idb';
+import { User, STORES } from '@/lib/db/idb';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { userService } from '@/lib/services/user-service';
 import { auditService } from '@/lib/services/audit-service';
+import { pullStore, processQueue } from '@/lib/db/sync-queue';
 
 export function useUsers() {
   const { user: currentUser, isAdmin } = useAuth();
@@ -20,6 +21,9 @@ export function useUsers() {
 
     setLoading(true);
     try {
+      if (typeof window !== 'undefined' && window.navigator.onLine) {
+        await pullStore(STORES.USERS);
+      }
       const businessUsers = await userService.getByBusiness(currentUser.businessId);
       // Remove passwordHash from the results
       const safeUsers = businessUsers.map(({ passwordHash, ...u }) => u);
@@ -51,6 +55,7 @@ export function useUsers() {
 
       await userService.update(updatedUser);
       await auditService.log('USER_BRANCH_ASSIGNMENT', `Updated branch assignments for ${userData.email}`);
+      await processQueue();
       await fetchUsers();
     } catch (error) {
       console.error('Failed to update user branches:', error);
@@ -72,6 +77,7 @@ export function useUsers() {
 
       await userService.create(newUser);
       await auditService.log('USER_CREATED', `Created new user: ${userData.email}`);
+      await processQueue();
       await fetchUsers();
     } catch (error) {
       console.error('Failed to create user:', error);
@@ -94,6 +100,7 @@ export function useUsers() {
 
       await userService.update(updatedUser);
       await auditService.log('USER_UPDATED', `Updated user: ${existingUser.email}`);
+      await processQueue();
       await fetchUsers();
     } catch (error) {
       console.error('Failed to update user:', error);
@@ -110,6 +117,7 @@ export function useUsers() {
 
       await userService.delete(userId);
       await auditService.log('USER_DELETED', `Deleted user: ${existingUser.email}`);
+      await processQueue();
       await fetchUsers();
     } catch (error) {
       console.error('Failed to delete user:', error);
