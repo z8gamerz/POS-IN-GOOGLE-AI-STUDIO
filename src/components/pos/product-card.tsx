@@ -265,14 +265,14 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
       }`}
     >
       {/* Product Image/Emoji Area */}
-      <div className={`w-full h-28 ${bg} rounded-2xl mb-4 flex items-center justify-center transition-transform group-hover:scale-105 duration-300 relative overflow-hidden`}>
+      <div className={`w-full h-32 ${bg} rounded-2xl mb-4 flex items-center justify-center transition-transform group-hover:scale-105 duration-300 relative overflow-hidden`}>
         {hasImage ? (
           <img
             src={product.imageUrl}
             alt={product.name}
             referrerPolicy="no-referrer"
             onError={() => setImageError(true)}
-            className="w-full h-full object-contain p-2 relative z-10"
+            className="w-full h-full object-cover relative z-10"
           />
         ) : (
           <span className="relative z-10 text-5xl">{emoji}</span>

@@ -20,6 +20,7 @@ import Settings from '@/pages/settings/page';
 import Reports from '@/pages/reports/page';
 import ReportsDaily from '@/pages/reports/daily/page';
 import ReportsSalesJournal from '@/pages/reports/sales-journal/page';
+import ReportsUtang from '@/pages/reports/utang/page';
 import AdminAuditTrail from '@/pages/admin/audit-trail/page';
 import AdminUsers from '@/pages/admin/users/page';
 
@@ -56,6 +57,8 @@ function AppContent() {
       return <ReportsDaily />;
     case '/reports/sales-journal':
       return <ReportsSalesJournal />;
+    case '/reports/utang':
+      return <ReportsUtang />;
     case '/admin/audit-trail':
       return <AdminAuditTrail />;
     case '/admin/users':

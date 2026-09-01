@@ -52,16 +52,16 @@ export function ProductList({ products, onEdit, onDelete }: ProductListProps) {
             <div>
               {/* Product Visual Area */}
               {hasValidImage ? (
-                <div className="w-full h-36 bg-gray-50 rounded-2xl mb-4 overflow-hidden relative border border-gray-100 flex items-center justify-center">
+                <div className="w-full h-44 bg-gray-100 rounded-2xl mb-4 overflow-hidden relative border border-gray-200/80 flex items-center justify-center">
                   <img
                     src={product.imageUrl}
                     alt={product.name}
                     referrerPolicy="no-referrer"
                     onError={() => handleImageError(product.id)}
-                    className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                  <div className="absolute top-2 right-2 bg-black/40 backdrop-blur-sm text-white p-1 rounded-md text-[9px] font-bold">
-                    <ImageIcon className="w-3 h-3" />
+                  <div className="absolute top-2.5 right-2.5 bg-black/50 backdrop-blur-md text-white p-1.5 rounded-lg text-[10px] font-bold shadow-xs">
+                    <ImageIcon className="w-3.5 h-3.5" />
                   </div>
                 </div>
               ) : null}

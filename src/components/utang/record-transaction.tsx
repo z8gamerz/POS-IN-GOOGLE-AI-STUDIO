@@ -2,19 +2,22 @@
 
 import { useState } from 'react';
 import { Customer } from '@/lib/db/idb';
-import { X, Save, ArrowUpRight, ArrowDownLeft, Coins, FileText } from 'lucide-react';
+import { X, Save, ArrowUpRight, ArrowDownLeft, Coins, FileText, Calendar } from 'lucide-react';
 import { motion } from 'motion/react';
+import { format } from 'date-fns';
 
 interface RecordTransactionProps {
   customer: Customer;
   type: 'credit' | 'payment';
-  onSave: (customerId: string, amount: number, description: string, type: 'credit' | 'payment') => Promise<void>;
+  onSave: (customerId: string, amount: number, description: string, type: 'credit' | 'payment', customTimestamp?: number) => Promise<void>;
   onClose: () => void;
 }
 
 export function RecordTransaction({ customer, type, onSave, onClose }: RecordTransactionProps) {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [transactionDate, setTransactionDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [transactionTime, setTransactionTime] = useState(format(new Date(), 'HH:mm'));
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +39,16 @@ export function RecordTransaction({ customer, type, onSave, onClose }: RecordTra
 
     setIsSaving(true);
     try {
-      await onSave(customer.id, parseFloat(amount), description.trim(), type);
+      let customTimestamp: number | undefined;
+      if (transactionDate) {
+        const dateTimeStr = `${transactionDate}T${transactionTime || '00:00'}:00`;
+        const parsed = new Date(dateTimeStr).getTime();
+        if (!isNaN(parsed)) {
+          customTimestamp = parsed;
+        }
+      }
+
+      await onSave(customer.id, parseFloat(amount), description.trim(), type, customTimestamp);
       onClose();
     } catch (error) {
       console.error('Record failed:', error);
@@ -65,12 +77,12 @@ export function RecordTransaction({ customer, type, onSave, onClose }: RecordTra
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">For {customer.name}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors cursor-pointer">
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="p-8 space-y-5">
           {error && (
             <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-100">
               {error}
@@ -88,37 +100,65 @@ export function RecordTransaction({ customer, type, onSave, onClose }: RecordTra
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-lg"
               />
             </div>
 
             <div>
               <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                <FileText className="w-3 h-3" /> Description
+                <FileText className="w-3 h-3" /> Description / Items
               </label>
               <input
                 type="text"
                 required
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder={type === 'credit' ? 'e.g. 2kg Rice, 1L Oil' : 'e.g. Partial payment'}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                placeholder={type === 'credit' ? 'e.g. 2kg Rice, Cooking Oil' : 'e.g. Partial payment / Full payment'}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
               />
+            </div>
+
+            {/* Date & Time Picker */}
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="flex items-center gap-1.5 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  <Calendar className="w-3 h-3" /> Date
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={transactionDate}
+                  onChange={(e) => setTransactionDate(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none text-xs font-bold text-gray-800"
+                />
+              </div>
+              <div>
+                <label className="flex items-center gap-1.5 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  Time
+                </label>
+                <input
+                  type="time"
+                  required
+                  value={transactionTime}
+                  onChange={(e) => setTransactionTime(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none text-xs font-bold text-gray-800"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="pt-4 flex gap-3">
+          <div className="pt-3 flex gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-6 py-4 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all"
+              className="flex-1 px-6 py-4 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSaving}
-              className={`flex-[2] text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all ${
+              className={`flex-[2] text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer ${
                 type === 'credit' 
                   ? 'bg-red-600 hover:bg-red-700 shadow-red-200' 
                   : 'bg-green-600 hover:bg-green-700 shadow-green-200'

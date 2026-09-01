@@ -54,12 +54,19 @@ export function useCustomers(branchId?: string) {
     await fetchCustomers();
   };
 
-  const recordCredit = async (customerId: string, amount: number, description: string, type: 'credit' | 'payment') => {
+  const recordCredit = async (
+    customerId: string, 
+    amount: number, 
+    description: string, 
+    type: 'credit' | 'payment',
+    customTimestamp?: number
+  ) => {
     if (!branchId) throw new Error('Branch ID is required to record credit');
     const customer = customers.find(c => c.id === customerId);
     if (!customer) return;
 
     const now = Date.now();
+    const entryTimestamp = customTimestamp && !isNaN(customTimestamp) ? customTimestamp : now;
     const entry: Omit<CreditEntry, 'updatedAt' | 'isDeleted'> = {
       id: crypto.randomUUID(),
       customerId,
@@ -67,7 +74,7 @@ export function useCustomers(branchId?: string) {
       amount: type === 'credit' ? amount : -amount,
       type,
       description,
-      timestamp: now,
+      timestamp: entryTimestamp,
     };
 
     await customerService.recordCredit(entry);
@@ -112,10 +119,15 @@ export function useCustomers(branchId?: string) {
     await fetchCustomers();
   };
 
-  const getCreditHistory = async (customerId: string) => {
+  const getCreditHistory = useCallback(async (customerId: string) => {
     const history = await customerService.getCreditHistory(customerId);
     return history.sort((a, b) => b.timestamp - a.timestamp);
-  };
+  }, []);
+
+  const getAllCreditHistory = useCallback(async (targetBranchId?: string) => {
+    const history = await customerService.getAllCreditHistory(targetBranchId || branchId);
+    return history.sort((a, b) => b.timestamp - a.timestamp);
+  }, [branchId]);
 
   return {
     customers,
@@ -125,6 +137,7 @@ export function useCustomers(branchId?: string) {
     deleteCustomer,
     recordCredit,
     getCreditHistory,
+    getAllCreditHistory,
     refresh: fetchCustomers,
   };
 }

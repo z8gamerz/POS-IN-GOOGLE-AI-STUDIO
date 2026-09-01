@@ -170,7 +170,7 @@ export function ProductForm({ product, onSave, onClose }: ProductFormProps) {
                       referrerPolicy="no-referrer"
                       onLoad={() => setImagePreviewStatus('success')}
                       onError={() => setImagePreviewStatus('error')}
-                      className={`w-full h-full object-contain p-1 transition-opacity duration-200 ${
+                      className={`w-full h-full object-cover transition-opacity duration-200 ${
                         imagePreviewStatus === 'success' ? 'opacity-100' : 'opacity-0'
                       }`}
                     />

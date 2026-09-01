@@ -7,7 +7,7 @@ import { Header } from '@/components/layout/header';
 import { CustomerForm } from '@/components/utang/customer-form';
 import { CreditHistory } from '@/components/utang/credit-history';
 import { RecordTransaction } from '@/components/utang/record-transaction';
-import { Plus, Search, User, Phone, ArrowLeft, History, ArrowUpRight, ArrowDownLeft, Trash2, Edit2, UserPlus, ShieldAlert, Loader2 } from 'lucide-react';
+import { Plus, Search, User, Phone, ArrowLeft, History, ArrowUpRight, ArrowDownLeft, Trash2, Edit2, UserPlus, ShieldAlert, Loader2, BarChart3, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
@@ -107,16 +107,25 @@ export default function UtangPage() {
               </div>
             </div>
   
-            <button
-              onClick={() => {
-                setEditingCustomer(null);
-                setIsFormOpen(true);
-              }}
-              className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-green-200 transition-all active:scale-95"
-            >
-              <Plus className="w-5 h-5" />
-              Add New Customer
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/reports/utang"
+                className="bg-white hover:bg-gray-50 text-gray-800 font-bold px-5 py-4 rounded-2xl flex items-center justify-center gap-2 border border-gray-200 shadow-sm hover:border-gray-300 transition-all active:scale-95 text-sm"
+              >
+                <BarChart3 className="w-5 h-5 text-orange-500" />
+                Reports &amp; Breakdown
+              </Link>
+              <button
+                onClick={() => {
+                  setEditingCustomer(null);
+                  setIsFormOpen(true);
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-green-200 transition-all active:scale-95 text-sm cursor-pointer"
+              >
+                <Plus className="w-5 h-5" />
+                Add New Customer
+              </button>
+            </div>
           </div>
   
           <div className="relative mb-8">
@@ -183,21 +192,21 @@ export default function UtangPage() {
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       onClick={() => { setSelectedCustomer(customer); setRecordType('credit'); }}
-                      className="flex flex-col items-center gap-1 p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-all active:scale-95"
+                      className="flex flex-col items-center gap-1 p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-all active:scale-95 cursor-pointer"
                     >
                       <ArrowUpRight className="w-5 h-5" />
                       <span className="text-[10px] font-bold uppercase">Utang</span>
                     </button>
                     <button
                       onClick={() => { setSelectedCustomer(customer); setRecordType('payment'); }}
-                      className="flex flex-col items-center gap-1 p-3 bg-green-50 text-green-600 rounded-2xl hover:bg-green-100 transition-all active:scale-95"
+                      className="flex flex-col items-center gap-1 p-3 bg-green-50 text-green-600 rounded-2xl hover:bg-green-100 transition-all active:scale-95 cursor-pointer"
                     >
                       <ArrowDownLeft className="w-5 h-5" />
                       <span className="text-[10px] font-bold uppercase">Pay</span>
                     </button>
                     <button
                       onClick={() => setHistoryCustomer(customer)}
-                      className="flex flex-col items-center gap-1 p-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-100 transition-all active:scale-95"
+                      className="flex flex-col items-center gap-1 p-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-100 transition-all active:scale-95 cursor-pointer"
                     >
                       <History className="w-5 h-5" />
                       <span className="text-[10px] font-bold uppercase">History</span>
