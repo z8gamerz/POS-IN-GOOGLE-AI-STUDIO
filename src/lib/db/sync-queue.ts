@@ -13,9 +13,16 @@ export function getFirebaseRtdbUrl(): string {
 /**
  * Helper to fetch with an abort controller timeout, preventing hangs on slow/offline networks.
  */
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 2500): Promise<Response> {
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 7000): Promise<Response> {
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
+  const id = setTimeout(() => {
+    try {
+      controller.abort(new Error(`Request timeout after ${timeout}ms`));
+    } catch {
+      controller.abort();
+    }
+  }, timeout);
+
   try {
     const response = await fetch(url, {
       ...options,
@@ -23,7 +30,7 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout 
     });
     clearTimeout(id);
     return response;
-  } catch (error) {
+  } catch (error: any) {
     clearTimeout(id);
     throw error;
   }
@@ -187,6 +194,8 @@ export async function markAsSynced(actionId: number): Promise<void> {
   }
 }
 
+let isProcessingQueue = false;
+
 /**
  * Processes the pending synchronization queue in batches.
  */
@@ -195,79 +204,105 @@ export async function processQueue(): Promise<void> {
     return;
   }
 
-  const queue = await dbUtil.getItems<SyncAction>(STORES.SYNC_QUEUE);
-  const pendingActions = queue.filter(a => a.status === 'pending' || a.status === 'failed');
+  if (isProcessingQueue) {
+    return;
+  }
 
-  if (pendingActions.length === 0) return;
-
-  console.log(`[CloudSync] Syncing ${pendingActions.length} changes to cloud...`);
-
-  // Batching strategy: Send up to 50 actions at a time
-  const BATCH_SIZE = 50;
-  const batch = pendingActions.slice(0, BATCH_SIZE);
+  isProcessingQueue = true;
 
   try {
+    const queue = await dbUtil.getItems<SyncAction>(STORES.SYNC_QUEUE);
+    const pendingActions = queue.filter(a => a.status === 'pending' || a.status === 'failed');
+
+    if (pendingActions.length === 0) {
+      isProcessingQueue = false;
+      return;
+    }
+
+    console.log(`[CloudSync] Syncing ${pendingActions.length} changes to cloud...`);
+
+    // Batching strategy: Send up to 30 actions at a time
+    const BATCH_SIZE = 30;
+    const batch = pendingActions.slice(0, BATCH_SIZE);
+
     // 1. Mark batch as processing locally
     for (const action of batch) {
       action.status = 'processing';
       await dbUtil.updateItem(STORES.SYNC_QUEUE, action);
     }
 
-    // 2. --- BACKEND INTEGRATION POINT ---
-    // Push each pending change to Firebase Realtime Database
+    // 2. Push each pending change to Firebase Realtime Database with per-item resilience
     const rawUrl = getFirebaseRtdbUrl();
     const BASE_URL = rawUrl.replace(/\/$/, '');
 
+    const successfulActionIds: number[] = [];
+    const failedActions: SyncAction[] = [];
+
     for (const action of batch) {
       const { store, payload } = action;
-      // Use 'id' or 'key' (for metadata store)
       const key = payload.id || payload.key;
       if (!key) {
-        console.warn('[CloudSync] Missing key for action payload:', payload);
+        if (action.id) successfulActionIds.push(action.id);
         continue;
       }
 
-      const url = `${BASE_URL}/${store}/${key}.json`;
-      const response = await fetchWithTimeout(url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+      try {
+        const url = `${BASE_URL}/${store}/${key}.json`;
+        const response = await fetchWithTimeout(url, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        }, 6000);
 
-      if (!response.ok) {
-        console.warn(`[CloudSync] Push failed for ${store}/${key}: ${response.statusText}`);
+        if (response.ok) {
+          if (action.id) {
+            successfulActionIds.push(action.id);
+          }
+        } else {
+          console.warn(`[CloudSync] Push notice for ${store}/${key}: ${response.statusText}`);
+          failedActions.push(action);
+        }
+      } catch (err: any) {
+        // Individual item timeout or network glitch - queue for non-blocking retry
+        failedActions.push(action);
       }
     }
-    
-    // 3. On success, remove from queue
-    for (const action of batch) {
-      if (action.id) {
-        await markAsSynced(action.id);
+
+    // 3. Mark successful ones as synced
+    for (const actionId of successfulActionIds) {
+      await markAsSynced(actionId);
+    }
+
+    // 4. Mark failed ones for next scheduled retry
+    for (const failedAction of failedActions) {
+      failedAction.status = 'failed';
+      failedAction.retryCount = (failedAction.retryCount || 0) + 1;
+      await dbUtil.updateItem(STORES.SYNC_QUEUE, failedAction);
+    }
+
+    // 5. Update store-wide sync timestamp if any action was successful
+    if (successfulActionIds.length > 0) {
+      const storeInfo = await dbUtil.getItems<any>(STORES.STORE_INFO);
+      if (storeInfo.length > 0) {
+        const info = storeInfo[0];
+        info.lastSyncedAt = Date.now();
+        await dbUtil.updateItem(STORES.STORE_INFO, info);
       }
     }
 
-    // 4. Update store-wide sync timestamp
-    const storeInfo = await dbUtil.getItems<any>(STORES.STORE_INFO);
-    if (storeInfo.length > 0) {
-      const info = storeInfo[0];
-      info.lastSyncedAt = Date.now();
-      await dbUtil.updateItem(STORES.STORE_INFO, info);
-    }
+    isProcessingQueue = false;
 
-    // 5. If there are more items, continue processing
-    if (pendingActions.length > BATCH_SIZE) {
-      processQueue();
+    // 6. If there are more items and we made progress, continue processing
+    if (pendingActions.length > BATCH_SIZE && successfulActionIds.length > 0) {
+      setTimeout(() => {
+        processQueue().catch(() => {});
+      }, 500);
     }
   } catch (error) {
-    console.error('[CloudSync] Batch sync failed:', error);
-    // Revert status to failed for retry
-    for (const action of batch) {
-      action.status = 'failed';
-      action.retryCount += 1;
-      await dbUtil.updateItem(STORES.SYNC_QUEUE, action);
-    }
+    console.warn('[CloudSync] Queue processing notice:', error);
+    isProcessingQueue = false;
   }
 }
 
@@ -284,7 +319,7 @@ export async function pullStore(store: StoreName): Promise<number> {
 
   try {
     const url = `${BASE_URL}/${store}.json`;
-    const response = await fetchWithTimeout(url);
+    const response = await fetchWithTimeout(url, {}, 6000);
     if (!response.ok) {
       console.warn(`[CloudSync] Failed to fetch store ${store}:`, response.statusText);
       return 0;
@@ -360,7 +395,7 @@ export async function pullSync(): Promise<void> {
     storesToSync.map(async (store) => {
       try {
         const url = `${BASE_URL}/${store}.json`;
-        const response = await fetchWithTimeout(url, {}, 2500);
+        const response = await fetchWithTimeout(url, {}, 6000);
         if (!response.ok) {
           if (response.status === 401 || response.status === 403 || response.statusText === 'Unauthorized') {
             unauthorizedCount++;

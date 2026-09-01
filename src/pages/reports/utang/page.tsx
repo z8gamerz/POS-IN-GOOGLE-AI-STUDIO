@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useCustomers } from '@/lib/hooks/use-customers';
 import { useBranches } from '@/lib/hooks/use-branches';
 import { useStore } from '@/lib/hooks/use-store';
+import { useAuth } from '@/lib/contexts/auth-context';
 import { Header } from '@/components/layout/header';
 import { CreditHistory } from '@/components/utang/credit-history';
 import { AuthGuard } from '@/components/auth/auth-guard';
@@ -48,20 +49,25 @@ export default function UtangReportsPage() {
     getAllCreditHistory, 
     getCreditHistory,
     deleteCustomer,
-    deleteCreditEntry 
+    deleteCreditEntry,
+    seedDummyAccounts,
+    refresh: refreshCustomers
   } = useCustomers(selectedBranchId === 'all' ? undefined : selectedBranchId);
   const { store } = useStore();
+  const { isAdmin } = useAuth();
 
   const [allEntries, setAllEntries] = useState<CreditEntry[]>([]);
   const [loadingEntries, setLoadingEntries] = useState(true);
+  const [isRestoringDummy, setIsRestoringDummy] = useState(false);
+  const [restoreNotice, setRestoreNotice] = useState<string | null>(null);
 
   // Filters
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('all');
-  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState('2020-01-01');
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [datePreset, setDatePreset] = useState<string>('month');
+  const [datePreset, setDatePreset] = useState<string>('all');
 
   // Customer history modal
   const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
@@ -88,6 +94,21 @@ export default function UtangReportsPage() {
   useEffect(() => {
     fetchAllHistory();
   }, [selectedBranchId]);
+
+  const handleRestoreDummyAccounts = async () => {
+    setIsRestoringDummy(true);
+    try {
+      await seedDummyAccounts(true);
+      await refreshCustomers();
+      await fetchAllHistory();
+      setRestoreNotice('Dummy accounts & transactions restored successfully!');
+      setTimeout(() => setRestoreNotice(null), 4000);
+    } catch (err) {
+      console.error('Failed to restore dummy accounts:', err);
+    } finally {
+      setIsRestoringDummy(false);
+    }
+  };
 
   const handleDeleteCustomerConfirm = async () => {
     if (!customerToDelete) return;
@@ -383,6 +404,17 @@ export default function UtangReportsPage() {
 
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-2.5 print:hidden">
+                {isAdmin && (
+                  <button
+                    onClick={handleRestoreDummyAccounts}
+                    disabled={isRestoringDummy}
+                    className="px-4 py-3 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-2xl border border-amber-200 transition-all text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    title="Restore default sample customers with credit transaction items"
+                  >
+                    <Users className="w-4 h-4 text-amber-600" />
+                    {isRestoringDummy ? 'Restoring...' : 'Restore Dummy Accounts'}
+                  </button>
+                )}
                 <button
                   onClick={fetchAllHistory}
                   className="p-3 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-2xl border border-gray-200 transition-all text-xs font-bold flex items-center gap-1.5 cursor-pointer"
@@ -406,6 +438,13 @@ export default function UtangReportsPage() {
                 </button>
               </div>
             </div>
+
+            {isAdmin && restoreNotice && (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-xs font-bold flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                {restoreNotice}
+              </div>
+            )}
 
             {/* Filter Controls (Date Pickers, Presets, Search, Branch, Customer) */}
             <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4 print:hidden">

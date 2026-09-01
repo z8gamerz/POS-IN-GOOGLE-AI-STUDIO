@@ -10,9 +10,10 @@ import { Header } from '@/components/layout/header';
 import { UserManagement } from '@/components/admin/user-management';
 import { AuthGuard } from '@/components/auth/auth-guard';
 import { clearDatabaseAll } from '@/lib/db/sync-queue';
+import { customerService } from '@/lib/services/customer-service';
 
 export default function SettingsPage() {
-  const { store, updateStore, loading } = useStore();
+  const { store, updateStore, loading, currentBranchId } = useStore();
   const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<'business' | 'users'>('business');
   const [name, setName] = useState('');
@@ -24,6 +25,21 @@ export default function SettingsPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [isRestoringDummy, setIsRestoringDummy] = useState(false);
+  const [dummyRestoredMsg, setDummyRestoredMsg] = useState(false);
+
+  const handleRestoreSampleCustomers = async () => {
+    setIsRestoringDummy(true);
+    try {
+      await customerService.seedDummyAccounts(currentBranchId || 'main_branch_id', true);
+      setDummyRestoredMsg(true);
+      setTimeout(() => setDummyRestoredMsg(false), 4000);
+    } catch (err) {
+      console.error('Failed to restore dummy customers:', err);
+    } finally {
+      setIsRestoringDummy(false);
+    }
+  };
 
   const handleClearAllData = async () => {
     setIsClearing(true);
@@ -294,6 +310,38 @@ export default function SettingsPage() {
               </p>
             </div>
           </div>
+
+          {/* Sample Dummy Data Card (Admin only) */}
+          {isAdmin && (
+            <div className="mt-6 p-8 bg-amber-50 rounded-[2.5rem] border border-amber-200/70 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="flex items-start gap-6">
+                <div className="bg-amber-500 p-3 rounded-xl text-white shadow-lg shadow-amber-200 flex-shrink-0">
+                  <Users className="w-6 h-6" />
+                </div>
+                <div className="text-left">
+                  <h4 className="text-lg font-black text-amber-950 uppercase tracking-tight mb-2">Sample Customer Accounts &amp; Transactions</h4>
+                  <p className="text-amber-800/80 font-medium leading-relaxed max-w-2xl text-sm">
+                    Restore default sample customers (Aling Nena, Mang Kanor, Tito Boy, Ate Fe, etc.) with detailed transaction items and credit balances. You can manage, edit, or delete them manually at any time.
+                  </p>
+                  {dummyRestoredMsg && (
+                    <p className="text-emerald-700 font-bold text-xs mt-2 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Dummy accounts &amp; item transactions restored successfully!
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isRestoringDummy}
+                onClick={handleRestoreSampleCustomers}
+                className="w-full md:w-auto bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-black px-8 py-4 rounded-[1.5rem] transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-wider shadow-lg shadow-amber-200 shrink-0 cursor-pointer border-none disabled:opacity-50"
+              >
+                <Users className="w-4 h-4" />
+                {isRestoringDummy ? 'Restoring...' : 'Restore Dummy Accounts'}
+              </button>
+            </div>
+          )}
 
           {/* Danger Zone: Clear Dummy Data */}
           <div className="mt-6 p-8 bg-rose-50 rounded-[2.5rem] border border-rose-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">

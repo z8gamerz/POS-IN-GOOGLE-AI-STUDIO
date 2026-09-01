@@ -78,7 +78,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const rawUrl = getFirebaseRtdbUrl();
         const BASE_URL = rawUrl.replace(/\/$/, '');
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2500);
+        const timeoutId = setTimeout(() => {
+          try {
+            controller.abort(new Error('Auth check timeout'));
+          } catch {
+            controller.abort();
+          }
+        }, 6000);
         const res = await fetch(`${BASE_URL}/users.json`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (res.ok) {

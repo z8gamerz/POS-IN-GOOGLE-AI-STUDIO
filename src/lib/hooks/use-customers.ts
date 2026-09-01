@@ -13,12 +13,21 @@ export function useCustomers(branchId?: string) {
     setLoading(true);
     try {
       let data: Customer[];
-      if (branchId) {
+      if (branchId && branchId !== 'all') {
         data = await customerService.getByBranch(branchId);
       } else {
         data = await customerService.getAll();
       }
-      setCustomers(data.sort((a, b) => b.createdAt - a.createdAt));
+
+      // If no active customers exist, auto-seed sample dummy accounts with transaction items
+      const activeCustomers = data.filter(c => !c.isDeleted);
+      if (activeCustomers.length === 0) {
+        const seedBranch = branchId && branchId !== 'all' ? branchId : 'main_branch_id';
+        const seeded = await customerService.seedDummyAccounts(seedBranch, false);
+        setCustomers(seeded.sort((a, b) => b.createdAt - a.createdAt));
+      } else {
+        setCustomers(activeCustomers.sort((a, b) => b.createdAt - a.createdAt));
+      }
     } catch (error) {
       console.error('Failed to fetch customers:', error);
     } finally {
@@ -29,6 +38,12 @@ export function useCustomers(branchId?: string) {
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
+
+  const seedDummyAccounts = async (force = true) => {
+    const seedBranch = branchId && branchId !== 'all' ? branchId : 'main_branch_id';
+    await customerService.seedDummyAccounts(seedBranch, force);
+    await fetchCustomers();
+  };
 
   const addCustomer = async (customer: Omit<Customer, 'id' | 'createdAt' | 'updatedAt' | 'totalUtang' | 'branchId' | 'isDeleted'>) => {
     if (!branchId) throw new Error('Branch ID is required to add a customer');
@@ -144,7 +159,8 @@ export function useCustomers(branchId?: string) {
   }, []);
 
   const getAllCreditHistory = useCallback(async (targetBranchId?: string) => {
-    const history = await customerService.getAllCreditHistory(targetBranchId || branchId);
+    const branchToFetch = targetBranchId !== undefined ? (targetBranchId === 'all' ? undefined : targetBranchId) : (branchId === 'all' ? undefined : branchId);
+    const history = await customerService.getAllCreditHistory(branchToFetch);
     return history.sort((a, b) => b.timestamp - a.timestamp);
   }, [branchId]);
 
@@ -158,6 +174,7 @@ export function useCustomers(branchId?: string) {
     recordCredit,
     getCreditHistory,
     getAllCreditHistory,
+    seedDummyAccounts,
     refresh: fetchCustomers,
   };
 }
