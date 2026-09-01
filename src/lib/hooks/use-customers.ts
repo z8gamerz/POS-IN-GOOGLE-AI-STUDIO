@@ -12,6 +12,9 @@ export function useCustomers(branchId?: string) {
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
     try {
+      // Auto-purge any legacy unknown or dummy data
+      await customerService.cleanupUnknownAndDummyData();
+
       let data: Customer[];
       if (branchId && branchId !== 'all') {
         data = await customerService.getByBranch(branchId);
@@ -19,15 +22,8 @@ export function useCustomers(branchId?: string) {
         data = await customerService.getAll();
       }
 
-      // If no active customers exist, auto-seed sample dummy accounts with transaction items
       const activeCustomers = data.filter(c => !c.isDeleted);
-      if (activeCustomers.length === 0) {
-        const seedBranch = branchId && branchId !== 'all' ? branchId : 'main_branch_id';
-        const seeded = await customerService.seedDummyAccounts(seedBranch, false);
-        setCustomers(seeded.sort((a, b) => b.createdAt - a.createdAt));
-      } else {
-        setCustomers(activeCustomers.sort((a, b) => b.createdAt - a.createdAt));
-      }
+      setCustomers(activeCustomers.sort((a, b) => b.createdAt - a.createdAt));
     } catch (error) {
       console.error('Failed to fetch customers:', error);
     } finally {
@@ -38,12 +34,6 @@ export function useCustomers(branchId?: string) {
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
-
-  const seedDummyAccounts = async (force = true) => {
-    const seedBranch = branchId && branchId !== 'all' ? branchId : 'main_branch_id';
-    await customerService.seedDummyAccounts(seedBranch, force);
-    await fetchCustomers();
-  };
 
   const addCustomer = async (customer: Omit<Customer, 'id' | 'createdAt' | 'updatedAt' | 'totalUtang' | 'branchId' | 'isDeleted'>) => {
     if (!branchId) throw new Error('Branch ID is required to add a customer');
@@ -174,7 +164,6 @@ export function useCustomers(branchId?: string) {
     recordCredit,
     getCreditHistory,
     getAllCreditHistory,
-    seedDummyAccounts,
     refresh: fetchCustomers,
   };
 }

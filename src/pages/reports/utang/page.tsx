@@ -50,7 +50,6 @@ export default function UtangReportsPage() {
     getCreditHistory,
     deleteCustomer,
     deleteCreditEntry,
-    seedDummyAccounts,
     refresh: refreshCustomers
   } = useCustomers(selectedBranchId === 'all' ? undefined : selectedBranchId);
   const { store } = useStore();
@@ -58,8 +57,6 @@ export default function UtangReportsPage() {
 
   const [allEntries, setAllEntries] = useState<CreditEntry[]>([]);
   const [loadingEntries, setLoadingEntries] = useState(true);
-  const [isRestoringDummy, setIsRestoringDummy] = useState(false);
-  const [restoreNotice, setRestoreNotice] = useState<string | null>(null);
 
   // Filters
   const [activeTab, setActiveTab] = useState<TabType>('all');
@@ -94,21 +91,6 @@ export default function UtangReportsPage() {
   useEffect(() => {
     fetchAllHistory();
   }, [selectedBranchId]);
-
-  const handleRestoreDummyAccounts = async () => {
-    setIsRestoringDummy(true);
-    try {
-      await seedDummyAccounts(true);
-      await refreshCustomers();
-      await fetchAllHistory();
-      setRestoreNotice('Dummy accounts & transactions restored successfully!');
-      setTimeout(() => setRestoreNotice(null), 4000);
-    } catch (err) {
-      console.error('Failed to restore dummy accounts:', err);
-    } finally {
-      setIsRestoringDummy(false);
-    }
-  };
 
   const handleDeleteCustomerConfirm = async () => {
     if (!customerToDelete) return;
@@ -179,6 +161,12 @@ export default function UtangReportsPage() {
   // Filtered Entries based on Date, Type, Branch, Customer, Search
   const filteredEntries = useMemo(() => {
     return allEntries.filter(entry => {
+      // 0. Ensure customer exists and is not unknown / deleted
+      const cust = customerMap.get(entry.customerId);
+      if (!cust || cust.isDeleted) return false;
+      const custName = cust.name?.trim() || '';
+      if (!custName || custName.toLowerCase() === 'unknown' || custName.toLowerCase() === 'unknown customer') return false;
+
       // 1. Branch filter
       if (selectedBranchId !== 'all' && entry.branchId !== selectedBranchId) {
         return false;
@@ -206,11 +194,9 @@ export default function UtangReportsPage() {
       // 5. Search query (Customer Name, Phone, Description)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
-        const cust = customerMap.get(entry.customerId);
-        const custName = cust?.name?.toLowerCase() || '';
         const custContact = cust?.contact?.toLowerCase() || '';
         const desc = entry.description?.toLowerCase() || '';
-        if (!custName.includes(query) && !custContact.includes(query) && !desc.includes(query)) {
+        if (!custName.toLowerCase().includes(query) && !custContact.includes(query) && !desc.includes(query)) {
           return false;
         }
       }
@@ -337,7 +323,7 @@ export default function UtangReportsPage() {
         const cust = customerMap.get(entry.customerId);
         return {
           'Date & Time': format(entry.timestamp, 'yyyy-MM-dd HH:mm:ss'),
-          'Customer Name': cust?.name || 'Unknown Customer',
+          'Customer Name': cust?.name || 'Customer',
           'Contact': cust?.contact || 'N/A',
           'Type': entry.type === 'payment' ? 'BAYAD (PAYMENT)' : 'UTANG (NEW CREDIT)',
           'Amount (PHP)': Math.abs(entry.amount).toFixed(2),
@@ -404,17 +390,6 @@ export default function UtangReportsPage() {
 
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-2.5 print:hidden">
-                {isAdmin && (
-                  <button
-                    onClick={handleRestoreDummyAccounts}
-                    disabled={isRestoringDummy}
-                    className="px-4 py-3 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-2xl border border-amber-200 transition-all text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                    title="Restore default sample customers with credit transaction items"
-                  >
-                    <Users className="w-4 h-4 text-amber-600" />
-                    {isRestoringDummy ? 'Restoring...' : 'Restore Dummy Accounts'}
-                  </button>
-                )}
                 <button
                   onClick={fetchAllHistory}
                   className="p-3 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-2xl border border-gray-200 transition-all text-xs font-bold flex items-center gap-1.5 cursor-pointer"
@@ -438,13 +413,6 @@ export default function UtangReportsPage() {
                 </button>
               </div>
             </div>
-
-            {isAdmin && restoreNotice && (
-              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-xs font-bold flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                {restoreNotice}
-              </div>
-            )}
 
             {/* Filter Controls (Date Pickers, Presets, Search, Branch, Customer) */}
             <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4 print:hidden">
@@ -843,7 +811,7 @@ export default function UtangReportsPage() {
                               {/* Customer */}
                               <td className="py-4 px-4">
                                 <span className="font-black text-gray-900 text-sm block">
-                                  {cust?.name || 'Unknown Customer'}
+                                  {cust?.name || 'Customer'}
                                 </span>
                                 <span className="text-[10px] text-gray-400">
                                   {cust?.contact || 'No contact'}

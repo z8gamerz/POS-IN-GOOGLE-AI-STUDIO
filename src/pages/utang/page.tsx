@@ -7,7 +7,7 @@ import { Header } from '@/components/layout/header';
 import { CustomerForm } from '@/components/utang/customer-form';
 import { CreditHistory } from '@/components/utang/credit-history';
 import { RecordTransaction } from '@/components/utang/record-transaction';
-import { Plus, Search, User, Phone, ArrowLeft, History, ArrowUpRight, ArrowDownLeft, Trash2, Edit2, UserPlus, ShieldAlert, Loader2, BarChart3, Receipt } from 'lucide-react';
+import { Plus, Search, User, ArrowLeft, History, ArrowUpRight, ArrowDownLeft, Trash2, Edit2, Loader2, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
@@ -27,7 +27,6 @@ export default function UtangPage() {
     deleteCreditEntry, 
     recordCredit, 
     getCreditHistory,
-    seedDummyAccounts,
     refresh
   } = useCustomers(currentBranchId || undefined);
   const { isCashier, isAdmin, loading: authLoading } = useAuth();
@@ -39,26 +38,10 @@ export default function UtangPage() {
   const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
   const [recordType, setRecordType] = useState<'credit' | 'payment' | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [isRestoringDummy, setIsRestoringDummy] = useState(false);
-  const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
 
   useEffect(() => {
     // Cashier redirection removed to allow Cashiers access to the Utang monitoring system
   }, [authLoading, router]);
-
-  const handleRestoreDummy = async () => {
-    setIsRestoringDummy(true);
-    try {
-      await seedDummyAccounts(true);
-      await refresh();
-      setRestoreMessage('Dummy accounts & items restored successfully!');
-      setTimeout(() => setRestoreMessage(null), 4000);
-    } catch (err) {
-      console.error('Failed to restore dummy accounts:', err);
-    } finally {
-      setIsRestoringDummy(false);
-    }
-  };
 
   if (loading || authLoading || loadingBranches) {
     return (
@@ -135,17 +118,6 @@ export default function UtangPage() {
             </div>
   
             <div className="flex flex-wrap items-center gap-3">
-              {isAdmin && (
-                <button
-                  onClick={handleRestoreDummy}
-                  disabled={isRestoringDummy}
-                  className="bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold px-4 py-4 rounded-2xl flex items-center justify-center gap-2 border border-amber-200 transition-all active:scale-95 text-sm cursor-pointer disabled:opacity-50"
-                  title="Restore default sample customers with items"
-                >
-                  <UserPlus className="w-5 h-5 text-amber-600" />
-                  {isRestoringDummy ? 'Restoring...' : 'Restore Dummy Accounts'}
-                </button>
-              )}
               <Link
                 href="/reports/utang"
                 className="bg-white hover:bg-gray-50 text-gray-800 font-bold px-5 py-4 rounded-2xl flex items-center justify-center gap-2 border border-gray-200 shadow-sm hover:border-gray-300 transition-all active:scale-95 text-sm"
@@ -165,13 +137,6 @@ export default function UtangPage() {
               </button>
             </div>
           </div>
-
-          {isAdmin && restoreMessage && (
-            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-xs font-bold flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              {restoreMessage}
-            </div>
-          )}
   
           <div className="relative mb-8">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
