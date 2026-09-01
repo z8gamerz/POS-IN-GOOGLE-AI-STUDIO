@@ -72,7 +72,7 @@ export function RecordTransaction({ customer, type, onSave, onClose }: RecordTra
             </div>
             <div>
               <h3 className="text-xl font-bold text-gray-900">
-                {type === 'credit' ? 'Record Utang' : 'Record Payment'}
+                {type === 'credit' ? 'Record Credit' : 'Record Payment'}
               </h3>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">For {customer.name}</p>
             </div>

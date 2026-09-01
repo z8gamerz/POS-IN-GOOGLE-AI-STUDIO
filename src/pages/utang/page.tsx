@@ -18,7 +18,7 @@ import { useBranches } from '@/lib/hooks/use-branches';
 
 export default function UtangPage() {
   const { currentBranchId, loading: loadingBranches } = useBranches();
-  const { customers, loading, addCustomer, updateCustomer, deleteCustomer, recordCredit, getCreditHistory } = useCustomers(currentBranchId || undefined);
+  const { customers, loading, addCustomer, updateCustomer, deleteCustomer, deleteCreditEntry, recordCredit, getCreditHistory } = useCustomers(currentBranchId || undefined);
   const { isCashier, loading: authLoading } = useAuth();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
@@ -102,8 +102,8 @@ export default function UtangPage() {
                 <ArrowLeft className="w-6 h-6" />
               </Link>
               <div>
-                <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Utang System</h2>
-                <p className="text-gray-500 font-medium">Track customer credit and payments.</p>
+                <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Customer Credit Management</h2>
+                <p className="text-gray-500 font-medium">Track customer credit accounts, charge utang, and log payments.</p>
               </div>
             </div>
   
@@ -172,11 +172,19 @@ export default function UtangPage() {
                         <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{customer.contact || 'No Contact'}</p>
                       </div>
                     </div>
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => handleEdit(customer)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
+                    <div className="flex gap-1.5">
+                      <button 
+                        onClick={() => handleEdit(customer)} 
+                        className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors cursor-pointer"
+                        title="Edit Customer Profile"
+                      >
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      <button onClick={() => handleDelete(customer.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors">
+                      <button 
+                        onClick={() => handleDelete(customer.id)} 
+                        className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors cursor-pointer"
+                        title="Delete Customer / Test Account"
+                      >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -195,21 +203,21 @@ export default function UtangPage() {
                       className="flex flex-col items-center gap-1 p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-all active:scale-95 cursor-pointer"
                     >
                       <ArrowUpRight className="w-5 h-5" />
-                      <span className="text-[10px] font-bold uppercase">Utang</span>
+                      <span className="text-[10px] font-bold uppercase">Credit</span>
                     </button>
                     <button
                       onClick={() => { setSelectedCustomer(customer); setRecordType('payment'); }}
                       className="flex flex-col items-center gap-1 p-3 bg-green-50 text-green-600 rounded-2xl hover:bg-green-100 transition-all active:scale-95 cursor-pointer"
                     >
                       <ArrowDownLeft className="w-5 h-5" />
-                      <span className="text-[10px] font-bold uppercase">Pay</span>
+                      <span className="text-[10px] font-bold uppercase">Payment</span>
                     </button>
                     <button
                       onClick={() => setHistoryCustomer(customer)}
                       className="flex flex-col items-center gap-1 p-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-100 transition-all active:scale-95 cursor-pointer"
                     >
                       <History className="w-5 h-5" />
-                      <span className="text-[10px] font-bold uppercase">History</span>
+                      <span className="text-[10px] font-bold uppercase">Ledger</span>
                     </button>
                   </div>
                 </motion.div>
@@ -239,6 +247,7 @@ export default function UtangPage() {
           <CreditHistory
             customer={historyCustomer}
             getHistory={getCreditHistory}
+            onDeleteEntry={deleteCreditEntry}
             onClose={() => setHistoryCustomer(null)}
           />
         )}

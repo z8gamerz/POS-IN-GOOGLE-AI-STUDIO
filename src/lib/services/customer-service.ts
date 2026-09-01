@@ -23,6 +23,18 @@ class CustomerService extends BaseService<Customer> {
     return all.filter(e => !e.isDeleted && (!branchId || e.branchId === branchId));
   }
 
+  async deleteCreditEntry(entryId: string): Promise<void> {
+    const entry = await dbUtil.getItemById<CreditEntry>(STORES.CREDIT_LOG, entryId);
+    if (!entry) return;
+    const now = Date.now();
+    const updated = {
+      ...entry,
+      isDeleted: true,
+      updatedAt: now,
+    };
+    await syncDb.update(STORES.CREDIT_LOG, updated);
+  }
+
   async recordCredit(entry: Omit<CreditEntry, 'updatedAt' | 'isDeleted'>): Promise<void> {
     const now = Date.now();
     const newEntry = {

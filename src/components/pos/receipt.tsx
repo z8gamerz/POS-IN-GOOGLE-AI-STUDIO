@@ -253,7 +253,7 @@ const ReceiptFooter = ({
         )}
       </div>
       <div className="text-center mt-8 space-y-1">
-        <p className="font-bold uppercase text-[10px]">Salamat Po!</p>
+        <p className="font-bold uppercase text-[10px]">Thank You!</p>
         <p className="text-[8px] opacity-60">Please keep this receipt for your records.</p>
         <p className="text-[8px] opacity-40 mt-2 italic">Official Receipt</p>
         <p className="text-[8px] opacity-40">Powered by Sari-Sari POS</p>

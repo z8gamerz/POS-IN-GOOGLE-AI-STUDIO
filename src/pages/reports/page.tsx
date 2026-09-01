@@ -263,7 +263,7 @@ export default function ReportsPage() {
                   className="w-full mt-3 bg-white/10 hover:bg-white/20 text-white font-black py-4 rounded-[2rem] flex items-center justify-center gap-3 transition-all active:scale-95 relative z-10 text-sm border border-white/20"
                 >
                   <Users className="w-5 h-5 text-orange-400" />
-                  UTANG &amp; COLLECTION REPORT
+                  CREDIT &amp; COLLECTION REPORT
                 </Link>
               </div>
             </div>

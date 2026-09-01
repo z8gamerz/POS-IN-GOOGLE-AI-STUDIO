@@ -267,7 +267,7 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
             {[
               { id: 'cash', label: 'Cash', icon: Coins, color: 'text-green-500 bg-green-50' },
               { id: 'gcash', label: 'GCash', icon: Wallet, color: 'text-blue-500 bg-blue-50' },
-              { id: 'credit', label: 'Utang / Credit', icon: UserCircle, color: 'text-red-500 bg-red-50' },
+              { id: 'credit', label: 'Credit', icon: UserCircle, color: 'text-red-500 bg-red-50' },
               { id: 'split', label: 'Split Payment', icon: Layers, color: 'text-purple-500 bg-purple-50' },
             ].map((method) => {
               const Icon = method.icon;
@@ -376,7 +376,7 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
               >
                 <div className="flex justify-between items-center">
                   <label className="text-xs font-black text-gray-400 uppercase tracking-widest block">
-                    Choose Customer (Utang)
+                    Choose Customer (Credit)
                   </label>
                   <button
                     type="button"
@@ -490,11 +490,11 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
                   </div>
                 )}
 
-                {/* Remaining Balance (automatically computed as Credit/Utang) */}
+                {/* Remaining Balance (automatically computed as Credit) */}
                 <div className="p-4 bg-purple-50 rounded-2xl border border-purple-100 flex justify-between items-center">
                   <div>
                     <span className="text-[10px] font-black text-purple-800 uppercase tracking-widest block mb-0.5">Remaining Balance (Credit)</span>
-                    <span className="text-xs text-purple-600 font-bold">This will automatically go to customer's Credit/Utang</span>
+                    <span className="text-xs text-purple-600 font-bold">This will automatically be recorded as customer credit</span>
                   </div>
                   <span className="text-xl font-black text-purple-700">
                     ₱{(parseFloat(splitCredit) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}

@@ -54,6 +54,25 @@ export function useCustomers(branchId?: string) {
     await fetchCustomers();
   };
 
+  const deleteCreditEntry = async (entryId: string, customerId: string) => {
+    await customerService.deleteCreditEntry(entryId);
+
+    // Recalculate customer total utang from remaining active credit logs
+    const remainingHistory = await customerService.getCreditHistory(customerId);
+    const newTotalUtang = remainingHistory.reduce((sum, e) => sum + e.amount, 0);
+
+    const customer = customers.find(c => c.id === customerId);
+    if (customer) {
+      const now = Date.now();
+      await customerService.update({
+        ...customer,
+        totalUtang: Math.max(0, newTotalUtang),
+        updatedAt: now,
+      });
+    }
+    await fetchCustomers();
+  };
+
   const recordCredit = async (
     customerId: string, 
     amount: number, 
@@ -135,6 +154,7 @@ export function useCustomers(branchId?: string) {
     addCustomer,
     updateCustomer,
     deleteCustomer,
+    deleteCreditEntry,
     recordCredit,
     getCreditHistory,
     getAllCreditHistory,

@@ -101,16 +101,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     if (!foundUser) {
       if (users.length === 0) {
-        throw new Error('Walang nakitang user account sa cloud database. Siguraduhing na-click ang Cloud Sync sa primary device kung saan ginawa ang account, o mag-Sign Up muna bilang Admin.');
+        throw new Error('No user account found in database. Ensure you click Sync on your primary device or Sign Up first as an Admin.');
       }
-      throw new Error(`Walang nakitang account para sa "${email}". Pakisuri ang spelling ng email o mag-sync sa primary device.`);
+      throw new Error(`No account found for "${email}". Please verify your email spelling or sync with the primary device.`);
     }
 
     const hashedPassword = await hashPassword(password);
     const isPasswordMatch = (foundUser.passwordHash === hashedPassword) || (foundUser.passwordHash === password);
     
     if (!isPasswordMatch) {
-      throw new Error('Maling password. Pakisuri ang inyong password at subukan muli.');
+      throw new Error('Incorrect password. Please verify your credentials and try again.');
     }
 
     const { passwordHash, ...userWithoutPassword } = foundUser;
@@ -158,17 +158,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (users.length > 0) {
       // If users exist, only an admin can create new users via management
       if (user?.role !== 'admin') {
-        throw new Error('Mayroon nang registered admin account sa system. Mangyaring mag-log in na lamang gamit ang admin account.');
+        throw new Error('A registered admin account already exists. Please log in with the administrator credentials.');
       }
     } else {
       // First user MUST be an admin
       if (role !== 'admin') {
-        throw new Error('Ang unang account na gagawin ay dapat Administrator.');
+        throw new Error('The initial registered account must be an Administrator.');
       }
     }
 
     if (users.some(u => u.email.trim().toLowerCase() === normalizedEmail)) {
-      throw new Error('Naka-rehistro na ang email na ito. Mag-log in na lamang.');
+      throw new Error('This email address is already registered. Please log in instead.');
     }
 
     const hashedPassword = await hashPassword(password);

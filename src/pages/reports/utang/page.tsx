@@ -29,6 +29,8 @@ import {
   TrendingDown,
   TrendingUp,
   RefreshCw,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
@@ -40,9 +42,14 @@ type TabType = 'all' | 'payments' | 'credit' | 'customers';
 export default function UtangReportsPage() {
   const { branches, currentBranchId } = useBranches();
   const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
-  const { customers, loading: loadingCustomers, getAllCreditHistory, getCreditHistory } = useCustomers(
-    selectedBranchId === 'all' ? undefined : selectedBranchId
-  );
+  const { 
+    customers, 
+    loading: loadingCustomers, 
+    getAllCreditHistory, 
+    getCreditHistory,
+    deleteCustomer,
+    deleteCreditEntry 
+  } = useCustomers(selectedBranchId === 'all' ? undefined : selectedBranchId);
   const { store } = useStore();
 
   const [allEntries, setAllEntries] = useState<CreditEntry[]>([]);
@@ -58,6 +65,11 @@ export default function UtangReportsPage() {
 
   // Customer history modal
   const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
+
+  // Delete Confirmation States
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
+  const [entryToDelete, setEntryToDelete] = useState<CreditEntry | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch all credit logs
   const fetchAllHistory = async () => {
@@ -76,6 +88,34 @@ export default function UtangReportsPage() {
   useEffect(() => {
     fetchAllHistory();
   }, [selectedBranchId]);
+
+  const handleDeleteCustomerConfirm = async () => {
+    if (!customerToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteCustomer(customerToDelete.id);
+      await fetchAllHistory();
+      setCustomerToDelete(null);
+    } catch (err) {
+      console.error('Failed to delete customer:', err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteEntryConfirm = async () => {
+    if (!entryToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteCreditEntry(entryToDelete.id, entryToDelete.customerId);
+      await fetchAllHistory();
+      setEntryToDelete(null);
+    } catch (err) {
+      console.error('Failed to delete credit entry:', err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Customer Map for fast lookup
   const customerMap = useMemo(() => {
@@ -336,7 +376,7 @@ export default function UtangReportsPage() {
                     </h1>
                   </div>
                   <p className="text-xs md:text-sm text-gray-500 font-medium mt-0.5">
-                    Buong breakdown ng mga bayad, bagong utang, at kasalukuyang balanse ng mga customer.
+                    Comprehensive breakdown of customer credit, collections, payments, and outstanding balances.
                   </p>
                 </div>
               </div>
@@ -373,8 +413,8 @@ export default function UtangReportsPage() {
                 {/* Date Presets */}
                 <div className="flex flex-wrap items-center gap-1.5 bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
                   {[
-                    { id: 'today', label: 'Ngayong Araw' },
-                    { id: 'yesterday', label: 'Kahapon' },
+                    { id: 'today', label: 'Today' },
+                    { id: 'yesterday', label: 'Yesterday' },
                     { id: 'week', label: 'Last 7 Days' },
                     { id: 'month', label: 'This Month' },
                     { id: 'all', label: 'All Time' },
@@ -396,7 +436,7 @@ export default function UtangReportsPage() {
                 {/* Date Inputs */}
                 <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-2xl border border-gray-200">
                   <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
-                  <span className="text-xs font-bold text-gray-500">Mula:</span>
+                  <span className="text-xs font-bold text-gray-500">From:</span>
                   <input
                     type="date"
                     value={startDate}
@@ -406,7 +446,7 @@ export default function UtangReportsPage() {
                     }}
                     className="bg-transparent text-xs font-bold text-gray-800 outline-none cursor-pointer"
                   />
-                  <span className="text-xs font-bold text-gray-400">Hanggang:</span>
+                  <span className="text-xs font-bold text-gray-400">To:</span>
                   <input
                     type="date"
                     value={endDate}
@@ -440,7 +480,7 @@ export default function UtangReportsPage() {
                     onChange={e => setSelectedCustomerId(e.target.value)}
                     className="w-full bg-transparent text-xs font-bold text-gray-800 outline-none cursor-pointer"
                   >
-                    <option value="all">Lahat ng Customer (All Customers)</option>
+                    <option value="all">All Customers</option>
                     {customers.map(c => (
                       <option key={c.id} value={c.id}>
                         {c.name} {c.totalUtang > 0 ? `(Bal: ₱${c.totalUtang.toLocaleString()})` : '(Paid)'}
@@ -457,7 +497,7 @@ export default function UtangReportsPage() {
                     onChange={e => setSelectedBranchId(e.target.value)}
                     className="w-full bg-transparent text-xs font-bold text-gray-800 outline-none cursor-pointer"
                   >
-                    <option value="all">Lahat ng Sangay (All Branches)</option>
+                    <option value="all">All Branches</option>
                     {branches.map(b => (
                       <option key={b.id} value={b.id}>
                         {b.name}
@@ -474,13 +514,13 @@ export default function UtangReportsPage() {
               <div className="bg-white p-5 rounded-3xl border border-green-100 shadow-xs flex items-center justify-between">
                 <div>
                   <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <ArrowDownLeft className="w-3.5 h-3.5 text-green-500" /> Kabuuang Bayad (Collections)
+                    <ArrowDownLeft className="w-3.5 h-3.5 text-green-500" /> Total Collections (Payments)
                   </p>
                   <p className="text-2xl font-black text-green-600">
                     ₱{metrics.totalPaymentsPeriod.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </p>
                   <p className="text-[10px] text-gray-400 font-semibold mt-1">
-                    {metrics.paymentCount} transaksyon ng bayad sa napiling petsa
+                    {metrics.paymentCount} payment transactions in selected period
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center shrink-0">
@@ -492,13 +532,13 @@ export default function UtangReportsPage() {
               <div className="bg-white p-5 rounded-3xl border border-red-100 shadow-xs flex items-center justify-between">
                 <div>
                   <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <ArrowUpRight className="w-3.5 h-3.5 text-red-500" /> Bagong Utang (New Credit)
+                    <ArrowUpRight className="w-3.5 h-3.5 text-red-500" /> New Credit (Utang Issued)
                   </p>
                   <p className="text-2xl font-black text-red-600">
                     ₱{metrics.totalCreditPeriod.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </p>
                   <p className="text-[10px] text-gray-400 font-semibold mt-1">
-                    {metrics.creditCount} transaksyon ng pautang sa napiling petsa
+                    {metrics.creditCount} credit transactions in selected period
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
@@ -510,13 +550,13 @@ export default function UtangReportsPage() {
               <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center justify-between">
                 <div>
                   <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                    Net Movement (Utang - Bayad)
+                    Net Movement (Credit - Paid)
                   </p>
                   <p className={`text-2xl font-black ${metrics.netFlow > 0 ? 'text-orange-600' : 'text-blue-600'}`}>
                     {metrics.netFlow > 0 ? '+' : ''}₱{metrics.netFlow.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </p>
                   <p className="text-[10px] text-gray-400 font-semibold mt-1">
-                    {metrics.netFlow > 0 ? 'Dumagdag ang kabuuang pautang' : 'Nabawasan ang kabuuang pautang'}
+                    {metrics.netFlow > 0 ? 'Total store credit increased' : 'Total store credit decreased'}
                   </p>
                 </div>
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${metrics.netFlow > 0 ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'}`}>
@@ -528,13 +568,13 @@ export default function UtangReportsPage() {
               <div className="bg-gray-900 text-white p-5 rounded-3xl shadow-md flex items-center justify-between">
                 <div>
                   <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                    Active Balanse (Lahat ng Utang)
+                    Active Outstanding Balance
                   </p>
                   <p className="text-2xl font-black text-orange-400">
                     ₱{metrics.totalOutstandingUtang.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </p>
                   <p className="text-[10px] text-gray-400 font-semibold mt-1">
-                    {metrics.activeBorrowersCount} customer na may kasalukuyang utang
+                    {metrics.activeBorrowersCount} customers with active credit
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-white/10 text-orange-400 flex items-center justify-center shrink-0">
@@ -553,7 +593,7 @@ export default function UtangReportsPage() {
                     : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
                 }`}
               >
-                Lahat ng Transaksyon ({filteredEntries.length})
+                All Transactions ({filteredEntries.length})
               </button>
               <button
                 onClick={() => setActiveTab('payments')}
@@ -563,7 +603,7 @@ export default function UtangReportsPage() {
                     : 'bg-white text-green-700 hover:bg-green-50 border border-green-200'
                 }`}
               >
-                <Coins className="w-3.5 h-3.5" /> Mga Nagbayad ({filteredEntries.filter(e => e.type === 'payment').length})
+                <Coins className="w-3.5 h-3.5" /> Payments Received ({filteredEntries.filter(e => e.type === 'payment').length})
               </button>
               <button
                 onClick={() => setActiveTab('credit')}
@@ -573,7 +613,7 @@ export default function UtangReportsPage() {
                     : 'bg-white text-red-700 hover:bg-red-50 border border-red-200'
                 }`}
               >
-                <ArrowUpRight className="w-3.5 h-3.5" /> Bagong Utang ({filteredEntries.filter(e => e.type === 'credit').length})
+                <ArrowUpRight className="w-3.5 h-3.5" /> New Credit Issued ({filteredEntries.filter(e => e.type === 'credit').length})
               </button>
               <button
                 onClick={() => setActiveTab('customers')}
@@ -591,16 +631,16 @@ export default function UtangReportsPage() {
             {loadingEntries || loadingCustomers ? (
               <div className="bg-white rounded-3xl p-16 text-center border border-gray-100 shadow-sm">
                 <div className="animate-spin border-4 border-orange-200 border-t-orange-600 rounded-full w-10 h-10 mx-auto mb-4" />
-                <p className="text-sm font-bold text-gray-500">Ikinakarga ang mga ulat ng utang at bayad...</p>
+                <p className="text-sm font-bold text-gray-500">Loading credit reports and ledger data...</p>
               </div>
             ) : activeTab === 'customers' ? (
               /* Customer Balances Summary Table */
               <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
-                    <h2 className="text-lg font-black text-gray-900">Buod ng mga Balanse ng Bawat Customer</h2>
+                    <h2 className="text-lg font-black text-gray-900">Customer Balance Breakdown</h2>
                     <p className="text-xs text-gray-500 font-medium">
-                      Pangkalahatang listahan ng mga customer, kabuuang inutang, ibinayad, at kasalukuyang balanse.
+                      Overview of customer accounts, total borrowed, payments made, and current balance.
                     </p>
                   </div>
                   <span className="text-xs font-bold text-gray-400">
@@ -614,18 +654,18 @@ export default function UtangReportsPage() {
                       <tr className="border-b border-gray-100 bg-gray-50/75 text-[11px] font-black uppercase tracking-widest text-gray-500">
                         <th className="py-4 px-6">Customer Name</th>
                         <th className="py-4 px-4">Contact</th>
-                        <th className="py-4 px-4 text-right">Inutang (Period)</th>
-                        <th className="py-4 px-4 text-right">Ibinayad (Period)</th>
+                        <th className="py-4 px-4 text-right">Credit (Period)</th>
+                        <th className="py-4 px-4 text-right">Paid (Period)</th>
                         <th className="py-4 px-6 text-right">Active Balance</th>
                         <th className="py-4 px-4 text-center">Status</th>
-                        <th className="py-4 px-6 text-center print:hidden">Aksyon</th>
+                        <th className="py-4 px-6 text-center print:hidden">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50 text-xs">
                       {customerBreakdown.length === 0 ? (
                         <tr>
                           <td colSpan={7} className="py-12 text-center text-gray-400 font-bold">
-                            Walang nahanap na customer ayon sa filter.
+                            No customers found matching the filter.
                           </td>
                         </tr>
                       ) : (
@@ -642,7 +682,7 @@ export default function UtangReportsPage() {
                                 </span>
                               </td>
                               <td className="py-4 px-4 font-semibold text-gray-600">
-                                {item.customer.contact || 'Walang Contact'}
+                                {item.customer.contact || 'No Contact'}
                               </td>
                               <td className="py-4 px-4 text-right font-bold text-red-600">
                                 ₱{item.periodBorrowed.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
@@ -665,7 +705,7 @@ export default function UtangReportsPage() {
                                 >
                                   {hasUtang ? (
                                     <>
-                                      <AlertCircle className="w-3 h-3" /> May Utang
+                                      <AlertCircle className="w-3 h-3" /> Has Credit
                                     </>
                                   ) : (
                                     <>
@@ -674,15 +714,24 @@ export default function UtangReportsPage() {
                                   )}
                                 </span>
                               </td>
-                              <td className="py-4 px-6 text-center print:hidden">
-                                <button
-                                  onClick={() => setHistoryCustomer(item.customer)}
-                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                                  title="View Full Ledger History"
-                                >
-                                  <History className="w-3.5 h-3.5" />
-                                  <span>Ledger</span>
-                                </button>
+                              <td className="py-4 px-6 text-center print:hidden whitespace-nowrap">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    onClick={() => setHistoryCustomer(item.customer)}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                                    title="View Full Ledger History"
+                                  >
+                                    <History className="w-3.5 h-3.5" />
+                                    <span>Ledger</span>
+                                  </button>
+                                  <button
+                                    onClick={() => setCustomerToDelete(item.customer)}
+                                    className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors cursor-pointer"
+                                    title="Delete customer account"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -699,13 +748,13 @@ export default function UtangReportsPage() {
                   <div>
                     <h2 className="text-lg font-black text-gray-900">
                       {activeTab === 'payments'
-                        ? 'Breakdown ng Lahat ng Nagbayad ng Utang'
+                        ? 'Breakdown of All Payments Received'
                         : activeTab === 'credit'
-                        ? 'Breakdown ng Lahat ng Bagong Utang'
-                        : 'Buong Talaan ng mga Utang at Bayad (Master Ledger)'}
+                        ? 'Breakdown of All New Credit Issued'
+                        : 'Comprehensive Credit & Payment Master Ledger'}
                     </h2>
                     <p className="text-xs text-gray-500 font-medium">
-                      Kronolohikal na talaan ng mga transaksyon sa napiling petsa ({startDate} hanggang {endDate}).
+                      Chronological ledger of transactions between {startDate} and {endDate}.
                     </p>
                   </div>
                   <span className="text-xs font-bold text-gray-400">
@@ -717,13 +766,13 @@ export default function UtangReportsPage() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-gray-100 bg-gray-50/75 text-[11px] font-black uppercase tracking-widest text-gray-500">
-                        <th className="py-4 px-6">Petsa at Oras</th>
+                        <th className="py-4 px-6">Date &amp; Time</th>
                         <th className="py-4 px-4">Customer</th>
-                        <th className="py-4 px-4 text-center">Uri ng Transaksyon</th>
-                        <th className="py-4 px-6 text-right">Halaga (₱)</th>
-                        <th className="py-4 px-6">Deskripsyon / Items</th>
+                        <th className="py-4 px-4 text-center">Transaction Type</th>
+                        <th className="py-4 px-6 text-right">Amount (₱)</th>
+                        <th className="py-4 px-6">Description / Items</th>
                         <th className="py-4 px-4">Branch</th>
-                        <th className="py-4 px-6 text-center print:hidden">Aksyon</th>
+                        <th className="py-4 px-6 text-center print:hidden">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50 text-xs">
@@ -731,7 +780,7 @@ export default function UtangReportsPage() {
                         <tr>
                           <td colSpan={7} className="py-16 text-center text-gray-400 font-bold">
                             <Clock className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                            Walang nahanap na transaksyon sa napiling petsa o filter.
+                            No transactions found matching the selected filters.
                           </td>
                         </tr>
                       ) : (
@@ -773,11 +822,11 @@ export default function UtangReportsPage() {
                                 >
                                   {isCredit ? (
                                     <>
-                                      <ArrowUpRight className="w-3 h-3 text-red-500" /> UTANG
+                                      <ArrowUpRight className="w-3 h-3 text-red-500" /> CREDIT
                                     </>
                                   ) : (
                                     <>
-                                      <ArrowDownLeft className="w-3 h-3 text-green-500" /> BAYAD
+                                      <ArrowDownLeft className="w-3 h-3 text-green-500" /> PAYMENT
                                     </>
                                   )}
                                 </span>
@@ -796,7 +845,7 @@ export default function UtangReportsPage() {
 
                               {/* Description / Items */}
                               <td className="py-4 px-6 text-gray-700 font-medium max-w-xs">
-                                <span className="line-clamp-2">{entry.description || 'Walang detalye'}</span>
+                                <span className="line-clamp-2">{entry.description || 'No description'}</span>
                               </td>
 
                               {/* Branch */}
@@ -806,15 +855,24 @@ export default function UtangReportsPage() {
 
                               {/* Actions */}
                               <td className="py-4 px-6 text-center print:hidden whitespace-nowrap">
-                                {cust && (
+                                <div className="flex items-center justify-center gap-1.5">
+                                  {cust && (
+                                    <button
+                                      onClick={() => setHistoryCustomer(cust)}
+                                      className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors cursor-pointer"
+                                      title="View Customer Credit Ledger"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </button>
+                                  )}
                                   <button
-                                    onClick={() => setHistoryCustomer(cust)}
-                                    className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors cursor-pointer"
-                                    title="View Customer Credit Ledger"
+                                    onClick={() => setEntryToDelete(entry)}
+                                    className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors cursor-pointer"
+                                    title="Delete this credit or payment record"
                                   >
-                                    <Eye className="w-4 h-4" />
+                                    <Trash2 className="w-4 h-4" />
                                   </button>
-                                )}
+                                </div>
                               </td>
                             </tr>
                           );
@@ -833,9 +891,101 @@ export default function UtangReportsPage() {
           <CreditHistory
             customer={historyCustomer}
             getHistory={getCreditHistory}
+            onDeleteEntry={async (entryId, custId) => {
+              await deleteCreditEntry(entryId, custId);
+              await fetchAllHistory();
+            }}
             onClose={() => setHistoryCustomer(null)}
           />
         )}
+
+        {/* Customer Deletion Confirmation Modal */}
+        <AnimatePresence>
+          {customerToDelete && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[120]">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-100 text-center space-y-4"
+              >
+                <div className="w-12 h-12 bg-red-100 text-red-600 rounded-2xl mx-auto flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-black text-gray-900">Delete Customer Account?</h4>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Are you sure you want to delete the profile for <strong className="text-gray-800">{customerToDelete.name}</strong>?
+                  </p>
+                  {customerToDelete.totalUtang > 0 && (
+                    <div className="mt-2 p-2.5 bg-red-50 rounded-xl text-red-700 text-xs font-bold">
+                      This customer has a remaining balance of ₱{customerToDelete.totalUtang.toLocaleString('en-PH', { minimumFractionDigits: 2 })}.
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={() => setCustomerToDelete(null)}
+                    disabled={isDeleting}
+                    className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteCustomerConfirm}
+                    disabled={isDeleting}
+                    className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-colors shadow-md shadow-red-200 cursor-pointer"
+                  >
+                    {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Transaction Entry Deletion Confirmation Modal */}
+        <AnimatePresence>
+          {entryToDelete && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[120]">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-100 text-center space-y-4"
+              >
+                <div className="w-12 h-12 bg-red-100 text-red-600 rounded-2xl mx-auto flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-black text-gray-900">Delete Transaction Entry?</h4>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Are you sure you want to remove &quot;{entryToDelete.description || 'Transaction'}&quot; amounting to <strong className="text-gray-800">₱{Math.abs(entryToDelete.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</strong>?
+                  </p>
+                  <p className="text-[11px] text-red-500 font-bold mt-2">
+                    The active balance will automatically recalculate.
+                  </p>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={() => setEntryToDelete(null)}
+                    disabled={isDeleting}
+                    className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteEntryConfirm}
+                    disabled={isDeleting}
+                    className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-colors shadow-md shadow-red-200 cursor-pointer"
+                  >
+                    {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </AuthGuard>
   );

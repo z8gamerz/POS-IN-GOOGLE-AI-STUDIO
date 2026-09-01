@@ -122,7 +122,7 @@ function HomeContent() {
       accentColor: 'text-red-600/70'
     },
     {
-      title: 'Utang System',
+      title: 'Credit System',
       description: 'Track customer credit',
       href: '/utang',
       icon: Users,
@@ -262,7 +262,7 @@ function HomeContent() {
   
             <div className="relative z-10">
               <h2 className="text-4xl md:text-6xl font-black text-gray-900 mb-6 tracking-tighter leading-tight">
-                Mabuhay, {store.name}!
+                Welcome, {store.name}!
               </h2>
               <p className="text-xl text-gray-500 mb-16 font-medium max-w-2xl mx-auto">
                 Your store is open and ready for business. What would you like to do today?
