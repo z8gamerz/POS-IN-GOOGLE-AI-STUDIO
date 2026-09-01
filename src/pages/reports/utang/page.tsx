@@ -21,11 +21,8 @@ import {
   Users,
   Coins,
   Receipt,
-  FileSpreadsheet,
-  Clock,
   CheckCircle2,
   AlertCircle,
-  Eye,
   History,
   TrendingDown,
   TrendingUp,
@@ -37,8 +34,6 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, startOfDay, endOfDay, isWithinInterval, subDays, startOfMonth } from 'date-fns';
 import Papa from 'papaparse';
-
-type TabType = 'all' | 'payments' | 'credit' | 'customers';
 
 export default function UtangReportsPage() {
   const { branches, currentBranchId } = useBranches();
@@ -59,7 +54,6 @@ export default function UtangReportsPage() {
   const [loadingEntries, setLoadingEntries] = useState(true);
 
   // Filters
-  const [activeTab, setActiveTab] = useState<TabType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('all');
   const [startDate, setStartDate] = useState('2020-01-01');
@@ -71,7 +65,6 @@ export default function UtangReportsPage() {
 
   // Delete Confirmation States
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
-  const [entryToDelete, setEntryToDelete] = useState<CreditEntry | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch all credit logs
@@ -101,20 +94,6 @@ export default function UtangReportsPage() {
       setCustomerToDelete(null);
     } catch (err) {
       console.error('Failed to delete customer:', err);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handleDeleteEntryConfirm = async () => {
-    if (!entryToDelete) return;
-    setIsDeleting(true);
-    try {
-      await deleteCreditEntry(entryToDelete.id, entryToDelete.customerId);
-      await fetchAllHistory();
-      setEntryToDelete(null);
-    } catch (err) {
-      console.error('Failed to delete credit entry:', err);
     } finally {
       setIsDeleting(false);
     }
@@ -158,7 +137,7 @@ export default function UtangReportsPage() {
     }
   };
 
-  // Filtered Entries based on Date, Type, Branch, Customer, Search
+  // Filtered Entries based on Date, Branch, Customer, Search for summary cards
   const filteredEntries = useMemo(() => {
     return allEntries.filter(entry => {
       // 0. Ensure customer exists and is not unknown / deleted
@@ -177,11 +156,7 @@ export default function UtangReportsPage() {
         return false;
       }
 
-      // 3. Tab Type filter
-      if (activeTab === 'payments' && entry.type !== 'payment') return false;
-      if (activeTab === 'credit' && entry.type !== 'credit') return false;
-
-      // 4. Date filter
+      // 3. Date filter
       if (startDate && endDate) {
         const entryDate = new Date(entry.timestamp);
         const start = startOfDay(new Date(startDate));
@@ -191,7 +166,7 @@ export default function UtangReportsPage() {
         }
       }
 
-      // 5. Search query (Customer Name, Phone, Description)
+      // 4. Search query (Customer Name, Phone, Description)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         const custContact = cust?.contact?.toLowerCase() || '';
@@ -203,7 +178,7 @@ export default function UtangReportsPage() {
 
       return true;
     }).sort((a, b) => b.timestamp - a.timestamp);
-  }, [allEntries, selectedBranchId, selectedCustomerId, activeTab, startDate, endDate, searchQuery, customerMap]);
+  }, [allEntries, selectedBranchId, selectedCustomerId, startDate, endDate, searchQuery, customerMap]);
 
   // Summary Metrics Calculation
   const metrics = useMemo(() => {
@@ -250,6 +225,7 @@ export default function UtangReportsPage() {
     return customers
       .filter(c => {
         if (selectedBranchId !== 'all' && c.branchId !== selectedBranchId) return false;
+        if (selectedCustomerId !== 'all' && c.id !== selectedCustomerId) return false;
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
           return c.name.toLowerCase().includes(q) || c.contact?.toLowerCase().includes(q);
@@ -298,44 +274,25 @@ export default function UtangReportsPage() {
         };
       })
       .sort((a, b) => b.currentBalance - a.currentBalance);
-  }, [customers, allEntries, selectedBranchId, searchQuery, startDate, endDate]);
+  }, [customers, allEntries, selectedBranchId, selectedCustomerId, searchQuery, startDate, endDate]);
 
-  // Export to CSV
+  // Export to CSV (Customer Balances Summary)
   const handleExportCSV = () => {
-    if (activeTab === 'customers') {
-      const data = customerBreakdown.map(item => ({
-        'Customer Name': item.customer.name,
-        'Contact Number': item.customer.contact || 'N/A',
-        'Branch': branchMap.get(item.customer.branchId) || 'Main',
-        'Current Outstanding Balance': item.currentBalance.toFixed(2),
-        'Period Utang (Borrowed)': item.periodBorrowed.toFixed(2),
-        'Period Bayad (Paid)': item.periodPaid.toFixed(2),
-        'Total Ever Borrowed': item.allBorrowed.toFixed(2),
-        'Total Ever Paid': item.allPaid.toFixed(2),
-        'Status': item.currentBalance > 0 ? 'HAS UTANG' : 'FULLY PAID',
-        'Last Transaction Date': format(item.lastActivity, 'yyyy-MM-dd HH:mm'),
-      }));
+    const data = customerBreakdown.map(item => ({
+      'Customer Name': item.customer.name,
+      'Contact Number': item.customer.contact || 'N/A',
+      'Branch': branchMap.get(item.customer.branchId) || 'Main',
+      'Current Outstanding Balance (PHP)': item.currentBalance.toFixed(2),
+      'Period Credit Issued (PHP)': item.periodBorrowed.toFixed(2),
+      'Period Payments Made (PHP)': item.periodPaid.toFixed(2),
+      'Total Lifetime Credit (PHP)': item.allBorrowed.toFixed(2),
+      'Total Lifetime Payments (PHP)': item.allPaid.toFixed(2),
+      'Status': item.currentBalance > 0 ? 'HAS OUTSTANDING BALANCE' : 'FULLY PAID',
+      'Last Transaction Date': format(item.lastActivity, 'yyyy-MM-dd HH:mm'),
+    }));
 
-      const csv = Papa.unparse(data);
-      downloadFile(csv, `customer-balances-report-${startDate}-to-${endDate}.csv`);
-    } else {
-      const data = filteredEntries.map(entry => {
-        const cust = customerMap.get(entry.customerId);
-        return {
-          'Date & Time': format(entry.timestamp, 'yyyy-MM-dd HH:mm:ss'),
-          'Customer Name': cust?.name || 'Customer',
-          'Contact': cust?.contact || 'N/A',
-          'Type': entry.type === 'payment' ? 'BAYAD (PAYMENT)' : 'UTANG (NEW CREDIT)',
-          'Amount (PHP)': Math.abs(entry.amount).toFixed(2),
-          'Description / Items': entry.description,
-          'Branch': branchMap.get(entry.branchId) || 'Main',
-          'Customer Current Balance': cust?.totalUtang ? cust.totalUtang.toFixed(2) : '0.00',
-        };
-      });
-
-      const csv = Papa.unparse(data);
-      downloadFile(csv, `utang-and-payments-report-${startDate}-to-${endDate}.csv`);
-    }
+    const csv = Papa.unparse(data);
+    downloadFile(csv, `customer-balances-summary-${startDate}-to-${endDate}.csv`);
   };
 
   const downloadFile = (content: string, filename: string) => {
@@ -379,11 +336,11 @@ export default function UtangReportsPage() {
                       <Receipt className="w-5 h-5" />
                     </div>
                     <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
-                      Utang &amp; Collection Reports
+                      Customer Balances &amp; Credit Reports
                     </h1>
                   </div>
                   <p className="text-xs md:text-sm text-gray-500 font-medium mt-0.5">
-                    Comprehensive breakdown of customer credit, collections, payments, and outstanding balances.
+                    Customer balances summary with period credit issued, payments received, and full ledger access.
                   </p>
                 </div>
               </div>
@@ -409,7 +366,7 @@ export default function UtangReportsPage() {
                   className="px-5 py-3 bg-gray-900 hover:bg-black text-white rounded-2xl shadow-md transition-all text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer"
                 >
                   <Download className="w-4 h-4 text-orange-400" />
-                  Export CSV
+                  Export Balances CSV
                 </button>
               </div>
             </div>
@@ -472,7 +429,7 @@ export default function UtangReportsPage() {
                   <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    placeholder="Search customer name, contact, notes..."
+                    placeholder="Search customer name, contact..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 bg-gray-50 rounded-2xl border border-gray-200 text-xs font-medium focus:ring-2 focus:ring-orange-500 outline-none"
@@ -590,64 +547,22 @@ export default function UtangReportsPage() {
               </div>
             </div>
 
-            {/* View Tabs */}
-            <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 pb-2 print:hidden">
-              <button
-                onClick={() => setActiveTab('all')}
-                className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'all'
-                    ? 'bg-gray-900 text-white shadow-sm'
-                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                All Transactions ({filteredEntries.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('payments')}
-                className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'payments'
-                    ? 'bg-green-600 text-white shadow-sm'
-                    : 'bg-white text-green-700 hover:bg-green-50 border border-green-200'
-                }`}
-              >
-                <Coins className="w-3.5 h-3.5" /> Payments Received ({filteredEntries.filter(e => e.type === 'payment').length})
-              </button>
-              <button
-                onClick={() => setActiveTab('credit')}
-                className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'credit'
-                    ? 'bg-red-600 text-white shadow-sm'
-                    : 'bg-white text-red-700 hover:bg-red-50 border border-red-200'
-                }`}
-              >
-                <ArrowUpRight className="w-3.5 h-3.5" /> New Credit Issued ({filteredEntries.filter(e => e.type === 'credit').length})
-              </button>
-              <button
-                onClick={() => setActiveTab('customers')}
-                className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'customers'
-                    ? 'bg-orange-600 text-white shadow-sm'
-                    : 'bg-white text-orange-700 hover:bg-orange-50 border border-orange-200'
-                }`}
-              >
-                <Users className="w-3.5 h-3.5" /> Customer Balances Summary ({customerBreakdown.length})
-              </button>
-            </div>
-
-            {/* Content Display */}
+            {/* Customer Balances Summary Table */}
             {loadingEntries || loadingCustomers ? (
               <div className="bg-white rounded-3xl p-16 text-center border border-gray-100 shadow-sm">
                 <div className="animate-spin border-4 border-orange-200 border-t-orange-600 rounded-full w-10 h-10 mx-auto mb-4" />
-                <p className="text-sm font-bold text-gray-500">Loading credit reports and ledger data...</p>
+                <p className="text-sm font-bold text-gray-500">Loading customer credit balances summary...</p>
               </div>
-            ) : activeTab === 'customers' ? (
-              /* Customer Balances Summary Table */
+            ) : (
               <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
-                    <h2 className="text-lg font-black text-gray-900">Customer Balance Breakdown</h2>
+                    <h2 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                      <Users className="w-5 h-5 text-orange-600" />
+                      Customer Balances Summary
+                    </h2>
                     <p className="text-xs text-gray-500 font-medium">
-                      Overview of customer accounts, total borrowed, payments made, and current balance.
+                      Overview of customer accounts, period credit issued, payments received, and active balance.
                     </p>
                   </div>
                   <span className="text-xs font-bold text-gray-400">
@@ -726,7 +641,7 @@ export default function UtangReportsPage() {
                                   <button
                                     onClick={() => setHistoryCustomer(item.customer)}
                                     className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                                    title="View Full Ledger History"
+                                    title="View Full Ledger History & Receipts"
                                   >
                                     <History className="w-3.5 h-3.5" />
                                     <span>Ledger</span>
@@ -737,147 +652,6 @@ export default function UtangReportsPage() {
                                     title="Delete customer account"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : (
-              /* Transaction Ledger Breakdown (All / Payments Only / Credit Only) */
-              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <h2 className="text-lg font-black text-gray-900">
-                      {activeTab === 'payments'
-                        ? 'Breakdown of All Payments Received'
-                        : activeTab === 'credit'
-                        ? 'Breakdown of All New Credit Issued'
-                        : 'Comprehensive Credit & Payment Master Ledger'}
-                    </h2>
-                    <p className="text-xs text-gray-500 font-medium">
-                      Chronological ledger of transactions between {startDate} and {endDate}.
-                    </p>
-                  </div>
-                  <span className="text-xs font-bold text-gray-400">
-                    {filteredEntries.length} Records found
-                  </span>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-gray-100 bg-gray-50/75 text-[11px] font-black uppercase tracking-widest text-gray-500">
-                        <th className="py-4 px-6">Date &amp; Time</th>
-                        <th className="py-4 px-4">Customer</th>
-                        <th className="py-4 px-4 text-center">Transaction Type</th>
-                        <th className="py-4 px-6 text-right">Amount (₱)</th>
-                        <th className="py-4 px-6">Description / Items</th>
-                        <th className="py-4 px-4">Branch</th>
-                        <th className="py-4 px-6 text-center print:hidden">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50 text-xs">
-                      {filteredEntries.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="py-16 text-center text-gray-400 font-bold">
-                            <Clock className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                            No transactions found matching the selected filters.
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredEntries.map(entry => {
-                          const cust = customerMap.get(entry.customerId);
-                          const isCredit = entry.type === 'credit';
-                          const entryDate = new Date(entry.timestamp);
-
-                          return (
-                            <tr key={entry.id} className="hover:bg-gray-50/80 transition-colors">
-                              {/* Date & Time */}
-                              <td className="py-4 px-6 whitespace-nowrap">
-                                <span className="font-bold text-gray-900 block">
-                                  {format(entryDate, 'MMM dd, yyyy')}
-                                </span>
-                                <span className="text-[11px] text-gray-400 font-medium">
-                                  {format(entryDate, 'hh:mm a')}
-                                </span>
-                              </td>
-
-                              {/* Customer */}
-                              <td className="py-4 px-4">
-                                <span className="font-black text-gray-900 text-sm block">
-                                  {cust?.name || 'Customer'}
-                                </span>
-                                <span className="text-[10px] text-gray-400">
-                                  {cust?.contact || 'No contact'}
-                                </span>
-                              </td>
-
-                              {/* Type Badge */}
-                              <td className="py-4 px-4 text-center whitespace-nowrap">
-                                <span
-                                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                    isCredit
-                                      ? 'bg-red-50 text-red-700 border border-red-100'
-                                      : 'bg-green-50 text-green-700 border border-green-100'
-                                  }`}
-                                >
-                                  {isCredit ? (
-                                    <>
-                                      <ArrowUpRight className="w-3 h-3 text-red-500" /> CREDIT
-                                    </>
-                                  ) : (
-                                    <>
-                                      <ArrowDownLeft className="w-3 h-3 text-green-500" /> PAYMENT
-                                    </>
-                                  )}
-                                </span>
-                              </td>
-
-                              {/* Amount */}
-                              <td className="py-4 px-6 text-right whitespace-nowrap">
-                                <span
-                                  className={`font-black text-sm ${
-                                    isCredit ? 'text-red-600' : 'text-green-600'
-                                  }`}
-                                >
-                                  {isCredit ? '+' : '-'} ₱{Math.abs(entry.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                                </span>
-                              </td>
-
-                              {/* Description / Items */}
-                              <td className="py-4 px-6 text-gray-700 font-medium max-w-xs">
-                                <span className="line-clamp-2">{entry.description || 'No description'}</span>
-                              </td>
-
-                              {/* Branch */}
-                              <td className="py-4 px-4 text-gray-500 font-semibold whitespace-nowrap">
-                                {branchMap.get(entry.branchId) || 'Main'}
-                              </td>
-
-                              {/* Actions */}
-                              <td className="py-4 px-6 text-center print:hidden whitespace-nowrap">
-                                <div className="flex items-center justify-center gap-1.5">
-                                  {cust && (
-                                    <button
-                                      onClick={() => setHistoryCustomer(cust)}
-                                      className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors cursor-pointer"
-                                      title="View Customer Credit Ledger"
-                                    >
-                                      <Eye className="w-4 h-4" />
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => setEntryToDelete(entry)}
-                                    className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors cursor-pointer"
-                                    title="Delete this credit or payment record"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
                                   </button>
                                 </div>
                               </td>
@@ -940,49 +714,6 @@ export default function UtangReportsPage() {
                   </button>
                   <button
                     onClick={handleDeleteCustomerConfirm}
-                    disabled={isDeleting}
-                    className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-colors shadow-md shadow-red-200 cursor-pointer"
-                  >
-                    {isDeleting ? 'Deleting...' : 'Yes, Delete'}
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-
-        {/* Transaction Entry Deletion Confirmation Modal */}
-        <AnimatePresence>
-          {entryToDelete && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[120]">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-100 text-center space-y-4"
-              >
-                <div className="w-12 h-12 bg-red-100 text-red-600 rounded-2xl mx-auto flex items-center justify-center">
-                  <AlertTriangle className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="text-lg font-black text-gray-900">Delete Transaction Entry?</h4>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Are you sure you want to remove &quot;{entryToDelete.description || 'Transaction'}&quot; amounting to <strong className="text-gray-800">₱{Math.abs(entryToDelete.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</strong>?
-                  </p>
-                  <p className="text-[11px] text-red-500 font-bold mt-2">
-                    The active balance will automatically recalculate.
-                  </p>
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <button
-                    onClick={() => setEntryToDelete(null)}
-                    disabled={isDeleting}
-                    className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleDeleteEntryConfirm}
                     disabled={isDeleting}
                     className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-colors shadow-md shadow-red-200 cursor-pointer"
                   >
