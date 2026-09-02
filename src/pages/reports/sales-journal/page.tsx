@@ -230,7 +230,7 @@ function SalesJournalContent() {
 
 export default function SalesJournalPage() {
   return (
-    <AuthGuard>
+    <AuthGuard allowedRoles={['admin']}>
       <SalesJournalContent />
     </AuthGuard>
   );

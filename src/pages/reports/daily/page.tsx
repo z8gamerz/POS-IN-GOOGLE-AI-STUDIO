@@ -162,12 +162,21 @@ function DailySummaryContent() {
              <div className="absolute top-0 right-0 w-64 h-64 bg-orange-600 rounded-full -mr-32 -mt-32 opacity-20 blur-3xl" />
              <p className="text-gray-400 font-black text-xs uppercase tracking-widest mb-4 relative z-10">End of Day Summary</p>
              <h3 className="text-2xl font-bold mb-8 relative z-10 tracking-tight">Great job today! Your store is performing well.</h3>
-             <Link 
-               href="/reports"
-               className="inline-flex items-center gap-3 bg-white text-gray-900 font-black px-12 py-5 rounded-[2rem] hover:bg-gray-100 transition-all active:scale-95 uppercase tracking-widest text-sm relative z-10"
-             >
-               View Full Reports Dashboard
-             </Link>
+             {!isCashier ? (
+               <Link 
+                 href="/reports"
+                 className="inline-flex items-center gap-3 bg-white text-gray-900 font-black px-12 py-5 rounded-[2rem] hover:bg-gray-100 transition-all active:scale-95 uppercase tracking-widest text-sm relative z-10"
+               >
+                 View Full Reports Dashboard
+               </Link>
+             ) : (
+               <Link 
+                 href="/pos"
+                 className="inline-flex items-center gap-3 bg-white text-gray-900 font-black px-12 py-5 rounded-[2rem] hover:bg-gray-100 transition-all active:scale-95 uppercase tracking-widest text-sm relative z-10"
+               >
+                 Go to POS Checkout
+               </Link>
+             )}
           </div>
         </div>
       </div>

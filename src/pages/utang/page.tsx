@@ -118,13 +118,15 @@ export default function UtangPage() {
             </div>
   
             <div className="flex flex-wrap items-center gap-3">
-              <Link
-                href="/reports/utang"
-                className="bg-white hover:bg-gray-50 text-gray-800 font-bold px-5 py-4 rounded-2xl flex items-center justify-center gap-2 border border-gray-200 shadow-sm hover:border-gray-300 transition-all active:scale-95 text-sm"
-              >
-                <BarChart3 className="w-5 h-5 text-orange-500" />
-                Reports &amp; Breakdown
-              </Link>
+              {isAdmin && (
+                <Link
+                  href="/reports/utang"
+                  className="bg-white hover:bg-gray-50 text-gray-800 font-bold px-5 py-4 rounded-2xl flex items-center justify-center gap-2 border border-gray-200 shadow-sm hover:border-gray-300 transition-all active:scale-95 text-sm"
+                >
+                  <BarChart3 className="w-5 h-5 text-orange-500" />
+                  Reports &amp; Breakdown
+                </Link>
+              )}
               <button
                 onClick={() => {
                   setEditingCustomer(null);

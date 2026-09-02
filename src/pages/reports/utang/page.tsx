@@ -312,7 +312,7 @@ export default function UtangReportsPage() {
   };
 
   return (
-    <AuthGuard>
+    <AuthGuard allowedRoles={['admin']}>
       <div className="min-h-screen bg-gray-50 flex flex-col font-sans print:bg-white print:p-0">
         <div className="print:hidden">
           <Header />

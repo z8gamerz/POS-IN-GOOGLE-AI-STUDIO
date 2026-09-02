@@ -130,8 +130,7 @@ function HomeContent() {
       shadow: 'shadow-green-100',
       bg: 'bg-green-50',
       textColor: 'text-green-900',
-      accentColor: 'text-green-600/70',
-      adminOnly: true
+      accentColor: 'text-green-600/70'
     },
     {
       title: 'Reports',
