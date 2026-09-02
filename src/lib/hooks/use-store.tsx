@@ -42,16 +42,29 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const loadStore = async () => {
     try {
       // 1. Immediately load local store data from IndexedDB
-      const currentStore = await storeService.getStore();
+      let currentStore = await storeService.getStore();
       if (currentStore) {
         setStore(currentStore);
       }
 
-      // Load Branches
-      const businessId = currentStore?.id || 'main_config';
-      let activeBranches = await branchService.getByBusiness(businessId);
+      // Load Branches - search both businessId match and getAll() to prevent data fragmentation
+      const allDbBranches = await branchService.getAll();
+      let activeBranches = allDbBranches.filter(b => !b.isDeleted);
       
-      // Deduplicate active branches (prevent duplicate "Main Branch"es)
+      // If no local branches or store exist yet and online, pull from cloud immediately
+      if ((activeBranches.length === 0 || !currentStore) && typeof window !== 'undefined' && window.navigator.onLine) {
+        try {
+          await pullSync();
+          currentStore = await storeService.getStore();
+          if (currentStore) setStore(currentStore);
+          const freshFromCloud = await branchService.getAll();
+          activeBranches = freshFromCloud.filter(b => !b.isDeleted);
+        } catch (syncErr) {
+          console.warn('[CloudSync] Fast pull note:', syncErr);
+        }
+      }
+
+      // Deduplicate active branches (prevent duplicate names)
       const seenNames = new Set<string>();
       activeBranches = activeBranches.filter(b => {
         if (b.isDeleted) return false;
@@ -60,6 +73,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         seenNames.add(normalizedName);
         return true;
       });
+
+      // If still 0 branches and store is set, auto-create a default Main Branch to ensure system operation
+      if (activeBranches.length === 0 && currentStore) {
+        const defaultBranch: Branch = {
+          id: crypto.randomUUID(),
+          name: 'Main Branch',
+          address: currentStore.address || 'Store Location',
+          contact: 'N/A',
+          businessId: currentStore.id || 'main_config',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          isDeleted: false,
+        };
+        await branchService.create(defaultBranch);
+        activeBranches = [defaultBranch];
+      }
 
       setBranches(activeBranches.sort((a, b) => b.createdAt - a.createdAt));
 
@@ -95,8 +124,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           // Refresh state with latest cloud sync data
           const currentStore = await storeService.getStore();
           if (currentStore) setStore(currentStore);
-          const businessId = currentStore?.id || 'main_config';
-          const rawBranches = await branchService.getByBusiness(businessId);
+          const rawBranches = await branchService.getAll();
           const freshNames = new Set<string>();
           const freshBranches = rawBranches.filter(b => {
             if (b.isDeleted) return false;
@@ -127,11 +155,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         pullSync()
           .then(() => processQueue())
           .then(() => {
-            // Reload local state by reading the updated stores
-            const businessId = store?.id || 'main_config';
             return Promise.all([
               storeService.getStore(),
-              branchService.getByBusiness(businessId),
+              branchService.getAll(),
               productService.getAll()
             ]);
           })
@@ -189,13 +215,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     await loadStore();
   };
 
-  const hasSpecificBranchAssignment = Boolean(
-    isCashier && user && user.assignedBranchIds && user.assignedBranchIds.length > 0
-  );
+  // Cashier branch permissions: match specific assigned branches if valid, else default to all active branches
+  const assignedValidBranches = (isCashier && user?.assignedBranchIds && user.assignedBranchIds.length > 0)
+    ? branches.filter(b => user.assignedBranchIds.includes(b.id))
+    : [];
+
+  const allowedBranches = assignedValidBranches.length > 0 ? assignedValidBranches : branches;
+  const allowedBranchIds = new Set(allowedBranches.map(b => b.id));
+
+  const allowedProducts = products.filter(p => {
+    if (!p.branchId) return true;
+    return allowedBranchIds.has(p.branchId);
+  });
 
   const switchBranch = (branchId: string) => {
-    if (hasSpecificBranchAssignment && user?.assignedBranchIds) {
-      if (!user.assignedBranchIds.includes(branchId)) {
+    if (assignedValidBranches.length > 0) {
+      if (!user?.assignedBranchIds?.includes(branchId)) {
         console.warn('Unauthorized branch switch attempted');
         return;
       }
@@ -204,39 +239,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(CURRENT_BRANCH_KEY, branchId);
   };
 
-  const allowedBranches = hasSpecificBranchAssignment
-    ? branches.filter(b => user?.assignedBranchIds?.includes(b.id))
-    : branches;
-
-  const allowedProducts = hasSpecificBranchAssignment
-    ? products.filter(p => user?.assignedBranchIds?.includes(p.branchId))
-    : products;
-
   const currentBranch = allowedBranches.find(b => b.id === currentBranchId) || allowedBranches[0];
 
-  const filteredProducts = currentBranchId
-    ? allowedProducts.filter(p => p.branchId === currentBranchId)
+  const filteredProducts = currentBranch
+    ? allowedProducts.filter(p => !p.branchId || p.branchId === currentBranch.id)
     : allowedProducts;
 
   // Enforce branch selection on mount / user change / branch load
   useEffect(() => {
     if (loading) return;
 
-    if (hasSpecificBranchAssignment && user?.assignedBranchIds) {
-      const assignedIds = user.assignedBranchIds;
+    if (assignedValidBranches.length > 0) {
+      const assignedIds = user!.assignedBranchIds;
       if (!currentBranchId || !assignedIds.includes(currentBranchId)) {
-        const fallbackId = assignedIds[0];
+        const fallbackId = assignedValidBranches[0].id;
         setCurrentBranchId(fallbackId);
         localStorage.setItem(CURRENT_BRANCH_KEY, fallbackId);
       }
-    } else if (branches.length > 0) {
-      if (!currentBranchId || !branches.some(b => b.id === currentBranchId)) {
-        const defaultId = branches[0].id;
+    } else if (allowedBranches.length > 0) {
+      if (!currentBranchId || !allowedBranches.some(b => b.id === currentBranchId)) {
+        const defaultId = allowedBranches[0].id;
         setCurrentBranchId(defaultId);
         localStorage.setItem(CURRENT_BRANCH_KEY, defaultId);
       }
     }
-  }, [user, isCashier, hasSpecificBranchAssignment, branches, currentBranchId, loading]);
+  }, [user, isCashier, assignedValidBranches, allowedBranches, currentBranchId, loading]);
 
   const addProduct = async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'isDeleted'>) => {
     const id = crypto.randomUUID();

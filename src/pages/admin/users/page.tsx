@@ -217,7 +217,9 @@ export default function UsersManagementPage() {
                                 );
                               })
                             ) : (
-                              <span className="text-[10px] font-black text-red-400 uppercase tracking-widest">No Branches</span>
+                              <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-md text-[9px] font-bold">
+                                All Branches
+                              </span>
                             )}
                           </div>
                         </td>

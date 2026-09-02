@@ -13,7 +13,8 @@ interface UserFormProps {
 }
 
 export function UserForm({ userData, onSave, onClose }: UserFormProps) {
-  const { branches } = useBranches();
+  const { branches, allBranches } = useBranches();
+  const branchList = (allBranches && allBranches.length > 0) ? allBranches : branches;
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -33,15 +34,15 @@ export function UserForm({ userData, onSave, onClose }: UserFormProps) {
         role: userData.role,
         assignedBranchIds: userData.assignedBranchIds && userData.assignedBranchIds.length > 0 
           ? userData.assignedBranchIds 
-          : branches.map(b => b.id),
+          : branchList.map(b => b.id),
       });
-    } else if (branches.length > 0) {
+    } else if (branchList.length > 0) {
       setFormData(prev => ({
         ...prev,
-        assignedBranchIds: branches.map(b => b.id)
+        assignedBranchIds: branchList.map(b => b.id)
       }));
     }
-  }, [userData, branches]);
+  }, [userData, branchList]);
 
   const toggleBranch = (branchId: string) => {
     setFormData(prev => ({
@@ -188,7 +189,7 @@ export function UserForm({ userData, onSave, onClose }: UserFormProps) {
               <MapPin className="w-3 h-3" /> Assigned Branches
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {branches.map((branch) => (
+              {branchList.map((branch) => (
                 <button
                   key={branch.id}
                   type="button"
@@ -205,7 +206,7 @@ export function UserForm({ userData, onSave, onClose }: UserFormProps) {
                   )}
                 </button>
               ))}
-              {branches.length === 0 && (
+              {branchList.length === 0 && (
                 <p className="text-xs text-gray-400 italic col-span-2 text-center py-4">No branches found. Create a branch first.</p>
               )}
             </div>

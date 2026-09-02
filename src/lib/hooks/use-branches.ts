@@ -21,16 +21,15 @@ export function useBranches() {
     switchBranch 
   } = useStore();
 
-  const hasSpecificRestriction = Boolean(
-    user && !isAdmin && user.assignedBranchIds && user.assignedBranchIds.length > 0
-  );
+  const assignedValidBranches = (user && !isAdmin && user.assignedBranchIds && user.assignedBranchIds.length > 0)
+    ? allBranches.filter(b => user.assignedBranchIds.includes(b.id))
+    : [];
 
-  const branches = hasSpecificRestriction
-    ? allBranches.filter(b => user?.assignedBranchIds?.includes(b.id))
-    : allBranches;
+  const branches = assignedValidBranches.length > 0 ? assignedValidBranches : allBranches;
 
   return {
     branches,
+    allBranches,
     currentBranchId,
     currentBranch,
     loading,
@@ -38,6 +37,7 @@ export function useBranches() {
     updateBranch,
     deleteBranch,
     selectBranch: switchBranch,
+    switchBranch,
     refresh: () => {}, // Handled by StoreProvider
   };
 }

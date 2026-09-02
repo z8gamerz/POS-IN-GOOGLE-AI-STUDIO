@@ -3,13 +3,16 @@
 import { useState } from 'react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useUsers } from '@/lib/hooks/use-users';
-import { User as UserIcon, Plus, Mail, Shield, Edit2, Trash2, Loader2, UserCircle } from 'lucide-react';
+import { useBranches } from '@/lib/hooks/use-branches';
+import { User as UserIcon, Plus, Mail, Shield, Edit2, Trash2, Loader2, UserCircle, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserForm } from '@/components/users/user-form';
 
 export function UserManagement() {
   const { user: currentUser } = useAuth();
   const { users, loading, createUser, updateUser, deleteUser } = useUsers();
+  const { allBranches, branches } = useBranches();
+  const branchList = (allBranches && allBranches.length > 0) ? allBranches : branches;
   const [editingUser, setEditingUser] = useState<any | null | 'new'>(null);
 
   const handleSaveUser = async (formData: any) => {
@@ -124,6 +127,25 @@ export function UserManagement() {
                 <p className="text-xs text-gray-400 font-bold flex items-center gap-1">
                   <Mail className="w-3 h-3" /> {u.email}
                 </p>
+              </div>
+
+              <div className="mt-3">
+                <div className="flex flex-wrap gap-1">
+                  {u.role === 'admin' ? (
+                    <span className="text-[9px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">All Branches</span>
+                  ) : u.assignedBranchIds && u.assignedBranchIds.length > 0 ? (
+                    u.assignedBranchIds.map(bid => {
+                      const branch = branchList.find(b => b.id === bid);
+                      return (
+                        <span key={bid} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-bold">
+                          {branch?.name || 'Branch'}
+                        </span>
+                      );
+                    })
+                  ) : (
+                    <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">All Branches</span>
+                  )}
+                </div>
               </div>
 
               <div className="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between">
