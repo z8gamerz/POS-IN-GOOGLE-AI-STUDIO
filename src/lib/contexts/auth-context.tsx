@@ -55,10 +55,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
 
-      // Non-blocking background sync of user and store profiles
+      // Non-blocking background sync of all store profiles & records
       if (typeof window !== 'undefined' && window.navigator.onLine) {
-        pullStore(STORES.USERS).catch(() => {});
-        pullStore(STORES.STORE_INFO).catch(() => {});
+        pullSync().then(() => processQueue()).catch(() => {});
       }
     };
     

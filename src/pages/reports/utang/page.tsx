@@ -33,6 +33,7 @@ import {
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, startOfDay, endOfDay, isWithinInterval, subDays, startOfMonth } from 'date-fns';
+import { downloadCSV } from '@/lib/utils';
 import Papa from 'papaparse';
 
 export default function UtangReportsPage() {
@@ -278,33 +279,65 @@ export default function UtangReportsPage() {
 
   // Export to CSV (Customer Balances Summary)
   const handleExportCSV = () => {
-    const data = customerBreakdown.map(item => ({
+    const listToExport = customerBreakdown.length > 0
+      ? customerBreakdown
+      : customers.map(cust => ({
+          customer: cust,
+          periodBorrowed: 0,
+          periodPaid: 0,
+          allBorrowed: 0,
+          allPaid: 0,
+          currentBalance: cust.totalUtang,
+          lastActivity: cust.createdAt,
+        }));
+
+    const data = listToExport.map(item => ({
       'Customer Name': item.customer.name,
       'Contact Number': item.customer.contact || 'N/A',
       'Branch': branchMap.get(item.customer.branchId) || 'Main',
-      'Current Outstanding Balance (PHP)': item.currentBalance.toFixed(2),
-      'Period Credit Issued (PHP)': item.periodBorrowed.toFixed(2),
-      'Period Payments Made (PHP)': item.periodPaid.toFixed(2),
-      'Total Lifetime Credit (PHP)': item.allBorrowed.toFixed(2),
-      'Total Lifetime Payments (PHP)': item.allPaid.toFixed(2),
+      'Current Outstanding Balance (PHP)': Number(item.currentBalance || 0).toFixed(2),
+      'Period Credit Issued (PHP)': Number(item.periodBorrowed || 0).toFixed(2),
+      'Period Payments Made (PHP)': Number(item.periodPaid || 0).toFixed(2),
+      'Total Lifetime Credit (PHP)': Number(item.allBorrowed || 0).toFixed(2),
+      'Total Lifetime Payments (PHP)': Number(item.allPaid || 0).toFixed(2),
       'Status': item.currentBalance > 0 ? 'HAS OUTSTANDING BALANCE' : 'FULLY PAID',
-      'Last Transaction Date': format(item.lastActivity, 'yyyy-MM-dd HH:mm'),
+      'Last Transaction Date': format(item.lastActivity || Date.now(), 'yyyy-MM-dd HH:mm'),
     }));
 
-    const csv = Papa.unparse(data);
-    downloadFile(csv, `customer-balances-summary-${startDate}-to-${endDate}.csv`);
+    downloadCSV(data, `customer-balances-summary-${startDate}-to-${endDate}.csv`);
   };
 
-  const downloadFile = (content: string, filename: string) => {
-    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', filename);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // Export Detailed Transactions Ledger (CSV)
+  const handleExportLedgerCSV = () => {
+    const filteredEntries = allEntries.filter(entry => {
+      if (selectedBranchId !== 'all') {
+        const cust = customers.find(c => c.id === entry.customerId);
+        if (cust && cust.branchId !== selectedBranchId) return false;
+      }
+      if (selectedCustomerId !== 'all' && entry.customerId !== selectedCustomerId) return false;
+      if (!startDate || !endDate) return true;
+      const entryDate = new Date(entry.timestamp);
+      return isWithinInterval(entryDate, {
+        start: startOfDay(new Date(startDate)),
+        end: endOfDay(new Date(endDate)),
+      });
+    });
+
+    const data = filteredEntries.map(entry => {
+      const cust = customers.find(c => c.id === entry.customerId);
+      return {
+        'Date & Time': format(entry.timestamp, 'yyyy-MM-dd HH:mm:ss'),
+        'Customer Name': cust?.name || 'Unknown Customer',
+        'Customer Contact': cust?.contact || 'N/A',
+        'Type': entry.type === 'credit' ? 'Utang (Credit)' : 'Bayad (Payment)',
+        'Amount (PHP)': Math.abs(entry.amount).toFixed(2),
+        'Discount (PHP)': Number(entry.discount || 0).toFixed(2),
+        'Discount Note': entry.discountNote || '',
+        'Description / Notes': entry.description || '',
+      };
+    });
+
+    downloadCSV(data, `credit-ledger-details-${startDate}-to-${endDate}.csv`);
   };
 
   const handlePrint = () => {
@@ -318,7 +351,23 @@ export default function UtangReportsPage() {
           <Header />
         </div>
 
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto print:p-0">
+        {/* Printable Report Header for Official Print/PDF */}
+        <div className="hidden print:block p-8 border-b-2 border-gray-900 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-black uppercase text-black tracking-tight">{store?.name || 'Sari-Sari Store POS'}</h1>
+              <p className="text-xs text-gray-600 font-medium">{store?.address || 'Store Location'}</p>
+              {store?.tin && <p className="text-xs text-gray-600">TIN: {store.tin}</p>}
+            </div>
+            <div className="text-right">
+              <h2 className="text-lg font-black uppercase text-orange-700 tracking-wider">Customer Credit &amp; Balances Report</h2>
+              <p className="text-xs text-gray-700 font-bold mt-1">Period: {startDate} to {endDate}</p>
+              <p className="text-[10px] text-gray-500">Printed on: {format(new Date(), 'yyyy-MM-dd HH:mm:ss')}</p>
+            </div>
+          </div>
+        </div>
+
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto print:overflow-visible print:p-0">
           <div className="max-w-7xl mx-auto space-y-6">
             {/* Header / Title Bar */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm print:border-none print:shadow-none print:p-0">
@@ -363,10 +412,19 @@ export default function UtangReportsPage() {
                 </button>
                 <button
                   onClick={handleExportCSV}
-                  className="px-5 py-3 bg-gray-900 hover:bg-black text-white rounded-2xl shadow-md transition-all text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer"
+                  className="px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl shadow-md transition-all text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer"
+                  title="Export Customer Balances Summary CSV"
+                >
+                  <Download className="w-4 h-4" />
+                  Balances CSV
+                </button>
+                <button
+                  onClick={handleExportLedgerCSV}
+                  className="px-4 py-3 bg-gray-900 hover:bg-black text-white rounded-2xl shadow-md transition-all text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer"
+                  title="Export Detailed Utang and Payment Transactions CSV"
                 >
                   <Download className="w-4 h-4 text-orange-400" />
-                  Export Balances CSV
+                  Ledger CSV
                 </button>
               </div>
             </div>

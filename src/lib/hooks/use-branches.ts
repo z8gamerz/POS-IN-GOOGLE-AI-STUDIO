@@ -21,8 +21,12 @@ export function useBranches() {
     switchBranch 
   } = useStore();
 
-  const branches = user && !isAdmin 
-    ? allBranches.filter(b => user.assignedBranchIds.includes(b.id))
+  const hasSpecificRestriction = Boolean(
+    user && !isAdmin && user.assignedBranchIds && user.assignedBranchIds.length > 0
+  );
+
+  const branches = hasSpecificRestriction
+    ? allBranches.filter(b => user?.assignedBranchIds?.includes(b.id))
     : allBranches;
 
   return {

@@ -189,10 +189,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     await loadStore();
   };
 
+  const hasSpecificBranchAssignment = Boolean(
+    isCashier && user && user.assignedBranchIds && user.assignedBranchIds.length > 0
+  );
+
   const switchBranch = (branchId: string) => {
-    if (isCashier && user) {
-      const assignedIds = user.assignedBranchIds || [];
-      if (!assignedIds.includes(branchId)) {
+    if (hasSpecificBranchAssignment && user?.assignedBranchIds) {
+      if (!user.assignedBranchIds.includes(branchId)) {
         console.warn('Unauthorized branch switch attempted');
         return;
       }
@@ -201,35 +204,39 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(CURRENT_BRANCH_KEY, branchId);
   };
 
-  const allowedBranches = user && isCashier
-    ? branches.filter(b => user.assignedBranchIds?.includes(b.id))
+  const allowedBranches = hasSpecificBranchAssignment
+    ? branches.filter(b => user?.assignedBranchIds?.includes(b.id))
     : branches;
 
-  const allowedProducts = user && isCashier
-    ? products.filter(p => user.assignedBranchIds?.includes(p.branchId))
+  const allowedProducts = hasSpecificBranchAssignment
+    ? products.filter(p => user?.assignedBranchIds?.includes(p.branchId))
     : products;
 
-  const currentBranch = allowedBranches.find(b => b.id === currentBranchId);
+  const currentBranch = allowedBranches.find(b => b.id === currentBranchId) || allowedBranches[0];
 
-  const filteredProducts = allowedProducts.filter(p => p.branchId === currentBranchId);
+  const filteredProducts = currentBranchId
+    ? allowedProducts.filter(p => p.branchId === currentBranchId)
+    : allowedProducts;
 
-  // Enforce cashier branch restriction on mount / user change / branch load
+  // Enforce branch selection on mount / user change / branch load
   useEffect(() => {
     if (loading) return;
-    if (isCashier && user) {
-      const assignedIds = user.assignedBranchIds || [];
+
+    if (hasSpecificBranchAssignment && user?.assignedBranchIds) {
+      const assignedIds = user.assignedBranchIds;
       if (!currentBranchId || !assignedIds.includes(currentBranchId)) {
-        if (assignedIds.length > 0) {
-          const fallbackId = assignedIds[0];
-          setCurrentBranchId(fallbackId);
-          localStorage.setItem(CURRENT_BRANCH_KEY, fallbackId);
-        } else {
-          setCurrentBranchId(null);
-          localStorage.removeItem(CURRENT_BRANCH_KEY);
-        }
+        const fallbackId = assignedIds[0];
+        setCurrentBranchId(fallbackId);
+        localStorage.setItem(CURRENT_BRANCH_KEY, fallbackId);
+      }
+    } else if (branches.length > 0) {
+      if (!currentBranchId || !branches.some(b => b.id === currentBranchId)) {
+        const defaultId = branches[0].id;
+        setCurrentBranchId(defaultId);
+        localStorage.setItem(CURRENT_BRANCH_KEY, defaultId);
       }
     }
-  }, [user, isCashier, branches, currentBranchId, loading]);
+  }, [user, isCashier, hasSpecificBranchAssignment, branches, currentBranchId, loading]);
 
   const addProduct = async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'isDeleted'>) => {
     const id = crypto.randomUUID();

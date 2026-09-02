@@ -134,18 +134,16 @@
   }
 
   @media print {
-    /* Hide everything by default when printing */
-    body * {
+    /* When printing a POS thermal receipt */
+    body:has(#printable-receipt) * {
       visibility: hidden;
     }
     
-    /* Only show the element with id "printable-receipt" and its children */
-    #printable-receipt,
-    #printable-receipt * {
+    body:has(#printable-receipt) #printable-receipt,
+    body:has(#printable-receipt) #printable-receipt * {
       visibility: visible;
     }
     
-    /* Position the printable receipt at the top left */
     #printable-receipt {
       position: fixed;
       left: 0;
@@ -153,28 +151,47 @@
       width: 80mm;
       margin: 0;
       padding: 0;
-      background: white;
+      background: white !important;
       box-shadow: none !important;
       border: none !important;
       visibility: visible !important;
-    }
-
-    /* Remove headers/footers from browser print */
-    @page {
-      size: 80mm auto;
-      margin: 0;
-    }
-
-    /* Ensure text is black and sharp */
-    #printable-receipt {
       color: black !important;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
 
-    /* Hide any browser-added headers/footers */
-    header, footer, nav {
+    /* When printing standard full-page Reports (no receipt popup) */
+    body:not(:has(#printable-receipt)) {
+      background: white !important;
+      color: black !important;
+    }
+
+    body:not(:has(#printable-receipt)) * {
+      visibility: visible;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* Elements to always hide during printing */
+    header,
+    nav,
+    .print\:hidden,
+    button:not(#printable-receipt button):not(.print-visible),
+    input,
+    select {
       display: none !important;
+      visibility: hidden !important;
+    }
+
+    /* Remove scroll clipping on print pages */
+    html, body, main, div {
+      overflow: visible !important;
+      height: auto !important;
+    }
+
+    @page {
+      margin: 10mm;
+      size: auto;
     }
   }
 }

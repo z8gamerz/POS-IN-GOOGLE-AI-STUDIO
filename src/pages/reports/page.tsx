@@ -19,14 +19,15 @@ import {
   Filter,
   ShieldAlert,
   FileText,
-  Users
+  Users,
+  Printer
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '@/lib/hooks/use-store';
 import { format } from 'date-fns';
-import Papa from 'papaparse';
+import { downloadCSV } from '@/lib/utils';
 import { AuthGuard } from '@/components/auth/auth-guard';
 
 export default function ReportsPage() {
@@ -53,25 +54,22 @@ export default function ReportsPage() {
       .filter(t => !t.isDeleted && t.timestamp >= cutoff)
       .sort((a, b) => b.timestamp - a.timestamp);
 
-    const exportData = filtered.map(t => ({
-      Date: format(t.timestamp, 'yyyy-MM-dd'),
+    const exportData = (filtered.length > 0 ? filtered : transactions).map(t => ({
+      Date: format(t.timestamp, 'yyyy-MM-dd HH:mm'),
       'OR Number': t.orNumber || 'N/A',
-      'Total Sales': t.total.toFixed(2),
+      'Total Sales': (t.total || 0).toFixed(2),
+      'Discount Applied': (t.discount || 0).toFixed(2),
+      'Payment Method': t.paymentMethod || 'cash',
       VAT: (t.vatAmount || 0).toFixed(2),
       'Net Sales': (t.vatableSales || (t.total - (t.vatAmount || 0))).toFixed(2)
     }));
 
-    const csv = Papa.unparse(exportData);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
     const today = format(new Date(), 'yyyy-MM-dd');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `sales-report-${today}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCSV(exportData, `sales-report-${timeRange}d-${today}.csv`);
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   if (loading || authLoading || loadingBranches) {
@@ -168,6 +166,16 @@ export default function ReportsPage() {
                   </select>
                 </div>
   
+                {/* Print Button */}
+                <button
+                  onClick={handlePrint}
+                  className="flex items-center gap-2 bg-white hover:bg-gray-100 text-gray-800 px-5 py-3 rounded-[2rem] border border-gray-100 shadow-sm font-black text-xs uppercase tracking-widest transition-all cursor-pointer"
+                  title="Print Reports Overview"
+                >
+                  <Printer className="w-4 h-4 text-orange-600" />
+                  <span>Print Report</span>
+                </button>
+
                 {/* Time Range Filter */}
                 <div className="flex items-center gap-3 bg-white p-2 rounded-[2rem] border border-gray-100 shadow-sm">
                   {[

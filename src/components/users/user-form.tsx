@@ -31,10 +31,17 @@ export function UserForm({ userData, onSave, onClose }: UserFormProps) {
         email: userData.email,
         password: '', // Don't show password hash
         role: userData.role,
-        assignedBranchIds: userData.assignedBranchIds || [],
+        assignedBranchIds: userData.assignedBranchIds && userData.assignedBranchIds.length > 0 
+          ? userData.assignedBranchIds 
+          : branches.map(b => b.id),
       });
+    } else if (branches.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        assignedBranchIds: branches.map(b => b.id)
+      }));
     }
-  }, [userData]);
+  }, [userData, branches]);
 
   const toggleBranch = (branchId: string) => {
     setFormData(prev => ({

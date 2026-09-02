@@ -12,12 +12,13 @@ import {
   FileText,
   Filter,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Printer
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'motion/react';
 import { format, startOfDay, endOfDay, isWithinInterval, parseISO } from 'date-fns';
-import Papa from 'papaparse';
+import { downloadCSV } from '@/lib/utils';
 import { AuthGuard } from '@/components/auth/auth-guard';
 
 function SalesJournalContent() {
@@ -52,39 +53,56 @@ function SalesJournalContent() {
   }, [filteredTransactions]);
 
   const handleExport = () => {
-    const exportData = filteredTransactions.map(t => ({
-      Date: format(t.timestamp, 'yyyy-MM-dd'),
+    const listToExport = filteredTransactions.length > 0 ? filteredTransactions : transactions;
+    const exportData = listToExport.map(t => ({
+      'Date & Time': format(t.timestamp, 'yyyy-MM-dd HH:mm:ss'),
       'OR Number': t.orNumber || 'N/A',
-      'Total Sales': t.total.toFixed(2),
-      VAT: (t.vatAmount || 0).toFixed(2),
-      'Net Sales': (t.vatableSales || (t.total - (t.vatAmount || 0))).toFixed(2)
+      'Ticket No': t.ticketNumber || 'N/A',
+      'Total Sales (PHP)': Number(t.total || 0).toFixed(2),
+      'Discount Applied (PHP)': Number(t.discount || 0).toFixed(2),
+      'Payment Method': t.paymentMethod || 'cash',
+      'VAT Amount (PHP)': Number(t.vatAmount || 0).toFixed(2),
+      'Net Sales (PHP)': Number(t.vatableSales || (t.total - (t.vatAmount || 0))).toFixed(2)
     }));
 
-    const csv = Papa.unparse(exportData);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
     const today = format(new Date(), 'yyyy-MM-dd');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `sales-report-${today}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCSV(exportData, `sales-journal-${startDate}-to-${endDate || today}.csv`);
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
-      <Header />
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans print:bg-white print:p-0">
+      <div className="print:hidden">
+        <Header />
+      </div>
+
+      {/* Printable Report Header for Official Print/PDF */}
+      <div className="hidden print:block p-8 border-b-2 border-gray-900 mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-black uppercase text-black tracking-tight">{store?.name || 'Sari-Sari Store POS'}</h1>
+            <p className="text-xs text-gray-600 font-medium">{store?.address || 'Store Location'}</p>
+            {store?.tin && <p className="text-xs text-gray-600">TIN: {store.tin}</p>}
+          </div>
+          <div className="text-right">
+            <h2 className="text-lg font-black uppercase text-gray-900 tracking-wider">BIR Official Sales Journal</h2>
+            <p className="text-xs text-gray-700 font-bold mt-1">Period: {startDate} to {endDate}</p>
+            <p className="text-[10px] text-gray-500">Printed on: {format(new Date(), 'yyyy-MM-dd HH:mm:ss')}</p>
+          </div>
+        </div>
+      </div>
       
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto print:overflow-visible print:p-0">
         <div className="max-w-7xl mx-auto">
           {/* Header Section */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 print:hidden">
             <div className="flex items-center gap-4">
               <Link 
                 href="/reports"
-                className="p-3 bg-white hover:bg-gray-50 rounded-2xl transition-all text-gray-400 hover:text-gray-900 border border-gray-100 shadow-sm"
+                className="p-3 bg-white hover:bg-gray-50 rounded-2xl transition-all text-gray-400 hover:text-gray-900 border border-gray-100 shadow-sm cursor-pointer"
               >
                 <ArrowLeft className="w-6 h-6" />
               </Link>
@@ -111,12 +129,20 @@ function SalesJournalContent() {
                   className="bg-transparent border-none outline-none text-xs font-bold p-1"
                 />
               </div>
+
+              <button
+                onClick={handlePrint}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-black px-5 py-4 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-widest cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-gray-600" />
+                Print
+              </button>
               
               <button
                 onClick={handleExport}
-                className="bg-gray-900 text-white font-black px-6 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg hover:bg-black transition-all active:scale-95 text-xs uppercase tracking-widest"
+                className="bg-gray-900 text-white font-black px-6 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg hover:bg-black transition-all active:scale-95 text-xs uppercase tracking-widest cursor-pointer"
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-4 h-4 text-orange-400" />
                 Export CSV
               </button>
             </div>
