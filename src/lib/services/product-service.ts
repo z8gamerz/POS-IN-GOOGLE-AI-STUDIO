@@ -9,7 +9,7 @@ class ProductService extends BaseService<Product> {
   }
 
   async getByBranch(branchId: string): Promise<Product[]> {
-    return this.query(p => p.branchId === branchId);
+    return this.getByIndex('branchId', branchId);
   }
 
   async bulkCreate(products: Product[]): Promise<void> {

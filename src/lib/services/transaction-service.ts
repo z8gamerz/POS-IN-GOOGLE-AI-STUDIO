@@ -9,11 +9,11 @@ class TransactionService extends BaseService<Transaction> {
   }
 
   async getByBranch(branchId: string): Promise<Transaction[]> {
-    return this.query(t => t.branchId === branchId);
+    return this.getByIndex('branchId', branchId);
   }
 
   async getByCustomer(customerId: string): Promise<Transaction[]> {
-    return this.query(t => t.customerId === customerId);
+    return this.getByIndex('customerId', customerId);
   }
 }
 

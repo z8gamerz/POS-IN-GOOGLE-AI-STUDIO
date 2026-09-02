@@ -21,6 +21,7 @@
     ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
 
     "users": {
+      ".indexOn": ["email", "businessId", "role", "updatedAt"],
       "$userId": {
         // Anyone logged in can read a user record to check profiles, but write is admin-only or self
         ".read": "auth != null",
@@ -38,6 +39,7 @@
     },
 
     "products": {
+      ".indexOn": ["branchId", "category", "barcode", "updatedAt", "isDeleted"],
       "$productId": {
         // Read is allowed if admin, or if product's branchId is in user's assigned branches list
         ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('assignedBranchIds').child(data.child('branchId').val()).exists() || root.child('users').child(auth.uid).child('assignedBranchIds').val().contains(data.child('branchId').val()))",
@@ -56,6 +58,7 @@
     },
 
     "transactions": {
+      ".indexOn": ["branchId", "customerId", "timestamp", "paymentMethod", "orNumber", "ticketNumber", "updatedAt", "isDeleted"],
       "$transactionId": {
         // Enforce same branch checks on read/write for transactions
         ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('assignedBranchIds').child(data.child('branchId').val()).exists() || root.child('users').child(auth.uid).child('assignedBranchIds').val().contains(data.child('branchId').val()))",
@@ -74,6 +77,7 @@
     },
 
     "customers": {
+      ".indexOn": ["branchId", "updatedAt", "isDeleted"],
       "$customerId": {
         ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('assignedBranchIds').child(data.child('branchId').val()).exists() || root.child('users').child(auth.uid).child('assignedBranchIds').val().contains(data.child('branchId').val()))",
         ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || (newData.exists() && (root.child('users').child(auth.uid).child('assignedBranchIds').child(newData.child('branchId').val()).exists() || root.child('users').child(auth.uid).child('assignedBranchIds').val().contains(newData.child('branchId').val()))) || (!newData.exists() && (root.child('users').child(auth.uid).child('assignedBranchIds').child(data.child('branchId').val()).exists() || root.child('users').child(auth.uid).child('assignedBranchIds').val().contains(data.child('branchId').val()))))",
@@ -87,6 +91,7 @@
     },
 
     "credit_log": {
+      ".indexOn": ["customerId", "branchId", "timestamp", "type", "updatedAt", "isDeleted"],
       "$logId": {
         // Allow read/write if the log's customer belongs to an assigned branch
         ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('assignedBranchIds').child(root.child('customers').child(data.child('customerId').val()).child('branchId').val()).exists() || root.child('users').child(auth.uid).child('assignedBranchIds').val().contains(root.child('customers').child(data.child('customerId').val()).child('branchId').val()))",
@@ -101,6 +106,7 @@
     },
 
     "expenses": {
+      ".indexOn": ["branchId", "category", "timestamp", "updatedAt", "isDeleted"],
       "$expenseId": {
         ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('assignedBranchIds').child(data.child('branchId').val()).exists() || root.child('users').child(auth.uid).child('assignedBranchIds').val().contains(data.child('branchId').val()))",
         ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || (newData.exists() && (root.child('users').child(auth.uid).child('assignedBranchIds').child(newData.child('branchId').val()).exists() || root.child('users').child(auth.uid).child('assignedBranchIds').val().contains(newData.child('branchId').val()))) || (!newData.exists() && (root.child('users').child(auth.uid).child('assignedBranchIds').child(data.child('branchId').val()).exists() || root.child('users').child(auth.uid).child('assignedBranchIds').val().contains(data.child('branchId').val()))))",
@@ -114,6 +120,7 @@
     },
 
     "categories": {
+      ".indexOn": ["branchId", "updatedAt", "isDeleted"],
       "$categoryId": {
         ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('assignedBranchIds').child(data.child('branchId').val()).exists() || root.child('users').child(auth.uid).child('assignedBranchIds').val().contains(data.child('branchId').val()))",
         ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || (newData.exists() && (root.child('users').child(auth.uid).child('assignedBranchIds').child(newData.child('branchId').val()).exists() || root.child('users').child(auth.uid).child('assignedBranchIds').val().contains(newData.child('branchId').val()))) || (!newData.exists() && (root.child('users').child(auth.uid).child('assignedBranchIds').child(data.child('branchId').val()).exists() || root.child('users').child(auth.uid).child('assignedBranchIds').val().contains(data.child('branchId').val()))))",
@@ -125,6 +132,7 @@
     },
 
     "branches": {
+      ".indexOn": ["businessId", "updatedAt", "isDeleted"],
       "$branchId": {
         // Read is allowed if assigned or admin
         ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('assignedBranchIds').child($branchId).exists() || root.child('users').child(auth.uid).child('assignedBranchIds').val().contains($branchId))",
@@ -134,6 +142,22 @@
         "id": { ".validate": "newData.isString() && newData.val() == $branchId" },
         "name": { ".validate": "newData.isString() && newData.val().length > 0" }
       }
+    },
+
+    "ewallet_transactions": {
+      ".indexOn": ["branchId", "type", "createdAt", "updatedAt", "isDeleted"]
+    },
+
+    "suppliers": {
+      ".indexOn": ["branchId", "updatedAt", "isDeleted"]
+    },
+
+    "restock_transactions": {
+      ".indexOn": ["branchId", "supplierId", "timestamp", "updatedAt", "isDeleted"]
+    },
+
+    "audit_logs": {
+      ".indexOn": ["timestamp", "action", "user", "updatedAt"]
     }
   }
 }

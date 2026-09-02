@@ -9,7 +9,7 @@ class ExpenseService extends BaseService<Expense> {
   }
 
   async getByBranch(branchId: string): Promise<Expense[]> {
-    return this.query(e => e.branchId === branchId);
+    return this.getByIndex('branchId', branchId);
   }
 }
 

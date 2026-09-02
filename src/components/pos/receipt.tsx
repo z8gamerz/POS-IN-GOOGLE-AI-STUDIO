@@ -1,12 +1,13 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { Printer, Download, X, Share2 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { StoreInfo, Branch, TransactionItem } from '@/lib/db/idb';
+import { useDevice } from '@/lib/hooks/use-device';
 
 interface ReceiptProps {
   store: StoreInfo | null;
@@ -351,48 +352,78 @@ export function Receipt({
     }
   };
 
+  const { isMobile } = useDevice();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[300] flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 overflow-hidden overscroll-contain">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/80 backdrop-blur-md cursor-pointer"
+      />
+
       <motion.div 
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden flex flex-col shadow-2xl"
+        initial={isMobile ? { opacity: 0, y: '100%' } : { scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={isMobile ? { opacity: 0, y: '100%' } : { scale: 0.9, opacity: 0 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+        className="relative bg-white rounded-t-[2.25rem] sm:rounded-[2rem] w-full max-w-sm overflow-hidden flex flex-col shadow-2xl max-h-[92dvh] sm:max-h-[88vh] z-10"
       >
+        {isMobile && (
+          <div className="w-full pt-3 pb-1 flex justify-center items-center bg-gray-50">
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+          </div>
+        )}
+
         {/* Actions Header */}
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50 shrink-0">
           <div className="flex gap-2">
             <button 
+              type="button"
               onClick={handlePrint}
-              className="p-3 bg-white hover:bg-gray-100 rounded-xl text-gray-900 border border-gray-200 shadow-sm transition-all"
+              className="min-w-[40px] min-h-[40px] p-2.5 bg-white hover:bg-gray-100 rounded-xl text-gray-900 border border-gray-200 shadow-xs transition-all flex items-center justify-center cursor-pointer"
               title="Print Receipt"
             >
               <Printer className="w-5 h-5" />
             </button>
             <button 
+              type="button"
               onClick={handleDownloadPDF}
-              className="p-3 bg-white hover:bg-gray-100 rounded-xl text-gray-900 border border-gray-200 shadow-sm transition-all"
+              className="min-w-[40px] min-h-[40px] p-2.5 bg-white hover:bg-gray-100 rounded-xl text-gray-900 border border-gray-200 shadow-xs transition-all flex items-center justify-center cursor-pointer"
               title="Download PDF"
             >
               <Download className="w-5 h-5" />
             </button>
             <button 
+              type="button"
               onClick={handleShare}
-              className="p-3 bg-white hover:bg-gray-100 rounded-xl text-gray-900 border border-gray-200 shadow-sm transition-all"
+              className="min-w-[40px] min-h-[40px] p-2.5 bg-white hover:bg-gray-100 rounded-xl text-gray-900 border border-gray-200 shadow-xs transition-all flex items-center justify-center cursor-pointer"
               title="Share Receipt"
             >
               <Share2 className="w-5 h-5" />
             </button>
           </div>
           <button 
+            type="button"
             onClick={onClose}
-            className="p-3 bg-white hover:bg-gray-100 rounded-xl text-gray-400 border border-gray-200 shadow-sm transition-all"
+            className="min-w-[40px] min-h-[40px] p-2.5 bg-white hover:bg-gray-100 rounded-xl text-gray-400 border border-gray-200 shadow-xs transition-all flex items-center justify-center cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Receipt Content (Preview) */}
-        <div className="p-8 bg-gray-100 flex justify-center overflow-y-auto max-h-[70vh]">
+        <div className="p-4 sm:p-6 bg-gray-100 flex justify-center overflow-y-auto flex-1 overscroll-contain pb-safe">
           <div 
             id="printable-receipt"
             ref={receiptRef}

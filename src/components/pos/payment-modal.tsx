@@ -6,6 +6,7 @@ import { useCustomers } from '@/lib/hooks/use-customers';
 import { CustomerForm } from '@/components/utang/customer-form';
 import { X, Check, Coins, Wallet, UserCircle, UserPlus, Layers, Search, Truck, Plus, Tag, Percent } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useDevice } from '@/lib/hooks/use-device';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -33,8 +34,18 @@ interface PaymentModalProps {
 }
 
 export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: PaymentModalProps) {
+  const { isMobile } = useDevice();
   const { customers, addCustomer, refresh } = useCustomers(branchId);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'gcash' | 'credit' | 'split'>('cash');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
   
   // Cash details
   const [amountTendered, setAmountTendered] = useState<string>('');
@@ -189,30 +200,51 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 overflow-hidden overscroll-contain">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"
+      />
+
+      <motion.div
+        initial={isMobile ? { opacity: 0, y: '100%' } : { opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100 flex flex-col my-8"
+        exit={isMobile ? { opacity: 0, y: '100%' } : { opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+        className="relative bg-white w-full max-w-lg rounded-t-[2.25rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[92dvh] sm:max-h-[88vh] z-10"
       >
+        {/* Mobile Drag Indicator */}
+        {isMobile && (
+          <div className="w-full pt-3 pb-1 flex justify-center items-center bg-orange-50/50">
+            <div className="w-12 h-1.5 bg-orange-200 rounded-full" />
+          </div>
+        )}
+
         {/* Header */}
-        <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-orange-50/50">
+        <div className="px-5 sm:px-8 py-4 sm:py-5 border-b border-gray-100 flex items-center justify-between bg-orange-50/50 shrink-0">
           <div className="flex items-center gap-3">
             <div className="bg-orange-500 p-2.5 rounded-2xl text-white shadow-md shadow-orange-100">
               <Coins className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">Select Payment</h3>
+              <h3 className="text-base sm:text-lg font-black text-gray-900 uppercase tracking-tight">Select Payment</h3>
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Complete purchase transaction</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+          <button
+            type="button"
+            onClick={onClose}
+            className="min-w-[40px] min-h-[40px] p-2 hover:bg-gray-200 rounded-xl transition-colors flex items-center justify-center cursor-pointer border-none bg-transparent"
+          >
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
 
         {/* Content */}
-        <form onSubmit={handleSubmit} className="p-8 space-y-6 flex-1 overflow-y-auto max-h-[75vh]">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-7 md:p-8 space-y-5 sm:space-y-6 flex-1 overflow-y-auto overscroll-contain">
           {/* Total display breakdown */}
           <div className="bg-orange-50/20 p-5 rounded-3xl border border-orange-100/50 space-y-2">
             <div className="flex justify-between text-xs text-gray-500 font-bold">
@@ -646,18 +678,18 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
           )}
 
           {/* Footer buttons */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4 pb-safe">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-xl font-bold text-sm transition-all"
+              className="w-full sm:flex-1 min-h-[48px] py-3.5 px-6 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-2xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer border-none flex items-center justify-center"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!isValid}
-              className={`flex-[2] py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all font-black uppercase text-sm tracking-widest cursor-pointer ${
+              className={`w-full sm:flex-[2] min-h-[48px] py-3.5 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-all font-black uppercase text-xs tracking-wider cursor-pointer border-none ${
                 isValid
                   ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-100'
                   : 'bg-gray-100 text-gray-400 shadow-none cursor-not-allowed'

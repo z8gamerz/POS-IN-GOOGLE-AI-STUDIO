@@ -210,7 +210,7 @@ export type Expense = {
 };
 
 const DB_NAME = 'SariSariPOS_DB';
-const DB_VERSION = 17; // Incremented for Category store additions
+const DB_VERSION = 18; // Incremented for comprehensive indexing and storage exhaustion prevention
 
 export const STORES = {
   STORE_INFO: 'store_info',
@@ -232,6 +232,18 @@ export const STORES = {
 
 export type StoreName = typeof STORES[keyof typeof STORES];
 
+export type StorageStats = {
+  usageBytes: number;
+  quotaBytes: number;
+  usageFormatted: string;
+  quotaFormatted: string;
+  percentUsed: number;
+  totalRecords: number;
+  storeCounts: Record<string, number>;
+  activeIndexesCount: number;
+  isPersisted: boolean;
+};
+
 class IndexedDBUtility {
   private db: IDBDatabase | null = null;
 
@@ -244,7 +256,6 @@ class IndexedDBUtility {
       request.onerror = () => reject(request.error);
       request.onblocked = () => {
         console.warn('[IndexedDB] Database upgrade is blocked by another open connection.');
-        // If we have an existing open connection, close it to unblock
         if (this.db) {
           this.db.close();
           this.db = null;
@@ -254,7 +265,6 @@ class IndexedDBUtility {
         const db = request.result;
         this.db = db;
         
-        // Close database if a newer version is requested elsewhere
         db.onversionchange = () => {
           console.warn('[IndexedDB] Database version changing. Closing connection.');
           db.close();
@@ -268,29 +278,146 @@ class IndexedDBUtility {
 
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
+        const transaction = (event.target as IDBOpenDBRequest).transaction;
 
-        // Helper to create stores if they don't exist
-        const ensureStore = (name: string, options: IDBObjectStoreParameters) => {
-          if (!db.objectStoreNames.contains(name)) {
-            db.createObjectStore(name, options);
+        // Helper to get or create stores
+        const getOrCreateStore = (name: string, options: IDBObjectStoreParameters): IDBObjectStore => {
+          if (db.objectStoreNames.contains(name)) {
+            return transaction!.objectStore(name);
+          }
+          return db.createObjectStore(name, options);
+        };
+
+        // Helper to safely add indices without throwing if they already exist
+        const ensureIndex = (
+          store: IDBObjectStore,
+          indexName: string,
+          keyPath: string | string[],
+          options: IDBIndexParameters = { unique: false }
+        ) => {
+          if (!store.indexNames.contains(indexName)) {
+            store.createIndex(indexName, keyPath, options);
           }
         };
 
-        ensureStore(STORES.STORE_INFO, { keyPath: 'id' });
-        ensureStore(STORES.BRANCHES, { keyPath: 'id' });
-        ensureStore(STORES.PRODUCTS, { keyPath: 'id' });
-        ensureStore(STORES.TRANSACTIONS, { keyPath: 'id' });
-        ensureStore(STORES.CUSTOMERS, { keyPath: 'id' });
-        ensureStore(STORES.CREDIT_LOG, { keyPath: 'id' });
-        ensureStore(STORES.SYNC_QUEUE, { keyPath: 'id', autoIncrement: true });
-        ensureStore(STORES.METADATA, { keyPath: 'key' });
-        ensureStore(STORES.EWALLET_TRANSACTIONS, { keyPath: 'id' });
-        ensureStore(STORES.SUPPLIERS, { keyPath: 'id' });
-        ensureStore(STORES.RESTOCK_TRANSACTIONS, { keyPath: 'id' });
-        ensureStore(STORES.AUDIT_LOGS, { keyPath: 'id' });
-        ensureStore(STORES.USERS, { keyPath: 'id' });
-        ensureStore(STORES.EXPENSES, { keyPath: 'id' });
-        ensureStore(STORES.CATEGORIES, { keyPath: 'id' });
+        // 1. Store Info
+        getOrCreateStore(STORES.STORE_INFO, { keyPath: 'id' });
+
+        // 2. Branches
+        const branchStore = getOrCreateStore(STORES.BRANCHES, { keyPath: 'id' });
+        ensureIndex(branchStore, 'businessId', 'businessId');
+        ensureIndex(branchStore, 'name', 'name');
+        ensureIndex(branchStore, 'updatedAt', 'updatedAt');
+        ensureIndex(branchStore, 'isDeleted', 'isDeleted');
+
+        // 3. Products (High volume store)
+        const productStore = getOrCreateStore(STORES.PRODUCTS, { keyPath: 'id' });
+        ensureIndex(productStore, 'branchId', 'branchId');
+        ensureIndex(productStore, 'category', 'category');
+        ensureIndex(productStore, 'barcode', 'barcode');
+        ensureIndex(productStore, 'updatedAt', 'updatedAt');
+        ensureIndex(productStore, 'isDeleted', 'isDeleted');
+        ensureIndex(productStore, 'branch_deleted', ['branchId', 'isDeleted']);
+        ensureIndex(productStore, 'branch_category', ['branchId', 'category']);
+
+        // 4. Transactions (Highest volume store - prevents table scans & out of memory)
+        const transStore = getOrCreateStore(STORES.TRANSACTIONS, { keyPath: 'id' });
+        ensureIndex(transStore, 'branchId', 'branchId');
+        ensureIndex(transStore, 'customerId', 'customerId');
+        ensureIndex(transStore, 'timestamp', 'timestamp');
+        ensureIndex(transStore, 'paymentMethod', 'paymentMethod');
+        ensureIndex(transStore, 'orNumber', 'orNumber');
+        ensureIndex(transStore, 'ticketNumber', 'ticketNumber');
+        ensureIndex(transStore, 'updatedAt', 'updatedAt');
+        ensureIndex(transStore, 'isDeleted', 'isDeleted');
+        ensureIndex(transStore, 'branch_timestamp', ['branchId', 'timestamp']);
+        ensureIndex(transStore, 'branch_deleted', ['branchId', 'isDeleted']);
+
+        // 5. Customers
+        const customerStore = getOrCreateStore(STORES.CUSTOMERS, { keyPath: 'id' });
+        ensureIndex(customerStore, 'branchId', 'branchId');
+        ensureIndex(customerStore, 'name', 'name');
+        ensureIndex(customerStore, 'updatedAt', 'updatedAt');
+        ensureIndex(customerStore, 'isDeleted', 'isDeleted');
+        ensureIndex(customerStore, 'branch_deleted', ['branchId', 'isDeleted']);
+
+        // 6. Credit Log
+        const creditStore = getOrCreateStore(STORES.CREDIT_LOG, { keyPath: 'id' });
+        ensureIndex(creditStore, 'customerId', 'customerId');
+        ensureIndex(creditStore, 'branchId', 'branchId');
+        ensureIndex(creditStore, 'timestamp', 'timestamp');
+        ensureIndex(creditStore, 'type', 'type');
+        ensureIndex(creditStore, 'updatedAt', 'updatedAt');
+        ensureIndex(creditStore, 'isDeleted', 'isDeleted');
+        ensureIndex(creditStore, 'customer_deleted', ['customerId', 'isDeleted']);
+        ensureIndex(creditStore, 'branch_timestamp', ['branchId', 'timestamp']);
+
+        // 7. Sync Queue (High churn store)
+        const syncStore = getOrCreateStore(STORES.SYNC_QUEUE, { keyPath: 'id', autoIncrement: true });
+        ensureIndex(syncStore, 'status', 'status');
+        ensureIndex(syncStore, 'store', 'store');
+        ensureIndex(syncStore, 'timestamp', 'timestamp');
+        ensureIndex(syncStore, 'retryCount', 'retryCount');
+        ensureIndex(syncStore, 'status_timestamp', ['status', 'timestamp']);
+
+        // 8. Metadata
+        getOrCreateStore(STORES.METADATA, { keyPath: 'key' });
+
+        // 9. E-Wallet Transactions
+        const ewalletStore = getOrCreateStore(STORES.EWALLET_TRANSACTIONS, { keyPath: 'id' });
+        ensureIndex(ewalletStore, 'branchId', 'branchId');
+        ensureIndex(ewalletStore, 'type', 'type');
+        ensureIndex(ewalletStore, 'createdAt', 'createdAt');
+        ensureIndex(ewalletStore, 'updatedAt', 'updatedAt');
+        ensureIndex(ewalletStore, 'isDeleted', 'isDeleted');
+        ensureIndex(ewalletStore, 'branch_created', ['branchId', 'createdAt']);
+
+        // 10. Suppliers
+        const supplierStore = getOrCreateStore(STORES.SUPPLIERS, { keyPath: 'id' });
+        ensureIndex(supplierStore, 'branchId', 'branchId');
+        ensureIndex(supplierStore, 'name', 'name');
+        ensureIndex(supplierStore, 'updatedAt', 'updatedAt');
+        ensureIndex(supplierStore, 'isDeleted', 'isDeleted');
+
+        // 11. Restock Transactions
+        const restockStore = getOrCreateStore(STORES.RESTOCK_TRANSACTIONS, { keyPath: 'id' });
+        ensureIndex(restockStore, 'branchId', 'branchId');
+        ensureIndex(restockStore, 'supplierId', 'supplierId');
+        ensureIndex(restockStore, 'timestamp', 'timestamp');
+        ensureIndex(restockStore, 'updatedAt', 'updatedAt');
+        ensureIndex(restockStore, 'isDeleted', 'isDeleted');
+        ensureIndex(restockStore, 'branch_timestamp', ['branchId', 'timestamp']);
+
+        // 12. Audit Logs
+        const auditStore = getOrCreateStore(STORES.AUDIT_LOGS, { keyPath: 'id' });
+        ensureIndex(auditStore, 'timestamp', 'timestamp');
+        ensureIndex(auditStore, 'action', 'action');
+        ensureIndex(auditStore, 'user', 'user');
+        ensureIndex(auditStore, 'updatedAt', 'updatedAt');
+
+        // 13. Users
+        const userStore = getOrCreateStore(STORES.USERS, { keyPath: 'id' });
+        ensureIndex(userStore, 'email', 'email');
+        ensureIndex(userStore, 'businessId', 'businessId');
+        ensureIndex(userStore, 'role', 'role');
+        ensureIndex(userStore, 'updatedAt', 'updatedAt');
+
+        // 14. Expenses
+        const expenseStore = getOrCreateStore(STORES.EXPENSES, { keyPath: 'id' });
+        ensureIndex(expenseStore, 'branchId', 'branchId');
+        ensureIndex(expenseStore, 'category', 'category');
+        ensureIndex(expenseStore, 'timestamp', 'timestamp');
+        ensureIndex(expenseStore, 'updatedAt', 'updatedAt');
+        ensureIndex(expenseStore, 'isDeleted', 'isDeleted');
+        ensureIndex(expenseStore, 'branch_timestamp', ['branchId', 'timestamp']);
+
+        // 15. Categories
+        const catStore = getOrCreateStore(STORES.CATEGORIES, { keyPath: 'id' });
+        ensureIndex(catStore, 'branchId', 'branchId');
+        ensureIndex(catStore, 'name', 'name');
+        ensureIndex(catStore, 'updatedAt', 'updatedAt');
+        ensureIndex(catStore, 'isDeleted', 'isDeleted');
+        ensureIndex(catStore, 'branch_deleted', ['branchId', 'isDeleted']);
       };
     });
   }
@@ -316,6 +443,83 @@ class IndexedDBUtility {
 
       request.onsuccess = () => resolve(request.result as T[]);
       request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Indexed retrieval for sub-millisecond targeted lookups and bounded memory usage.
+   * Prevents browser out-of-memory errors on large databases.
+   */
+  async getItemsByIndex<T>(
+    storeName: StoreName,
+    indexName: string,
+    queryKey?: IDBValidKey | IDBKeyRange,
+    limit?: number,
+    direction: 'next' | 'nextunique' | 'prev' | 'prevunique' = 'next'
+  ): Promise<T[]> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      try {
+        const transaction = db.transaction(storeName, 'readonly');
+        const store = transaction.objectStore(storeName);
+
+        if (!store.indexNames.contains(indexName)) {
+          // Fallback if index not present yet: filter standard store items safely
+          this.getItems<any>(storeName).then(items => {
+            const filtered = queryKey !== undefined 
+              ? items.filter(i => (i as any)[indexName] === queryKey)
+              : items;
+            resolve((limit ? filtered.slice(0, limit) : filtered) as T[]);
+          }).catch(reject);
+          return;
+        }
+
+        const index = store.index(indexName);
+        const results: T[] = [];
+
+        if (limit && limit > 0) {
+          const request = index.openCursor(queryKey, direction);
+          request.onsuccess = () => {
+            const cursor = request.result;
+            if (cursor && results.length < limit) {
+              results.push(cursor.value);
+              cursor.continue();
+            } else {
+              resolve(results);
+            }
+          };
+          request.onerror = () => reject(request.error);
+        } else {
+          const request = queryKey !== undefined ? index.getAll(queryKey) : index.getAll();
+          request.onsuccess = () => resolve(request.result as T[]);
+          request.onerror = () => reject(request.error);
+        }
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  async countItems(storeName: StoreName, indexName?: string, queryKey?: IDBValidKey | IDBKeyRange): Promise<number> {
+    const db = await this.getDB();
+    return new Promise((resolve, reject) => {
+      try {
+        const transaction = db.transaction(storeName, 'readonly');
+        const store = transaction.objectStore(storeName);
+        let request: IDBRequest<number>;
+
+        if (indexName && store.indexNames.contains(indexName)) {
+          const index = store.index(indexName);
+          request = queryKey !== undefined ? index.count(queryKey) : index.count();
+        } else {
+          request = queryKey !== undefined ? store.count(queryKey) : store.count();
+        }
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      } catch (err) {
+        reject(err);
+      }
     });
   }
 
@@ -365,6 +569,113 @@ class IndexedDBUtility {
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);
     });
+  }
+
+  /**
+   * Reads browser storage quota and index telemetry to prevent device storage exhaustion.
+   */
+  async getStorageStats(): Promise<StorageStats> {
+    let usageBytes = 0;
+    let quotaBytes = 0;
+    let isPersisted = false;
+
+    if (typeof navigator !== 'undefined' && navigator.storage) {
+      if (navigator.storage.estimate) {
+        const estimate = await navigator.storage.estimate();
+        usageBytes = estimate.usage || 0;
+        quotaBytes = estimate.quota || 0;
+      }
+      if (navigator.storage.persisted) {
+        isPersisted = await navigator.storage.persisted();
+      }
+    }
+
+    const formatBytes = (bytes: number) => {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+    };
+
+    const storeCounts: Record<string, number> = {};
+    let totalRecords = 0;
+    let activeIndexesCount = 0;
+
+    try {
+      const db = await this.getDB();
+      const storeList = Object.values(STORES);
+
+      for (const name of storeList) {
+        if (db.objectStoreNames.contains(name)) {
+          const count = await this.countItems(name);
+          storeCounts[name] = count;
+          totalRecords += count;
+
+          const transaction = db.transaction(name, 'readonly');
+          const store = transaction.objectStore(name);
+          activeIndexesCount += store.indexNames.length;
+        }
+      }
+    } catch (e) {
+      console.warn('[IndexedDB] Storage stats error:', e);
+    }
+
+    const percentUsed = quotaBytes > 0 ? (usageBytes / quotaBytes) * 100 : 0;
+
+    return {
+      usageBytes,
+      quotaBytes,
+      usageFormatted: formatBytes(usageBytes),
+      quotaFormatted: formatBytes(quotaBytes),
+      percentUsed: Math.min(100, Math.max(0, percentUsed)),
+      totalRecords,
+      storeCounts,
+      activeIndexesCount,
+      isPersisted,
+    };
+  }
+
+  /**
+   * Prunes stale data, logs, and processed queue items to prevent IndexedDB exhaustion.
+   */
+  async optimizeAndPrune(): Promise<{ prunedQueue: number; prunedAuditLogs: number; freedRecords: number }> {
+    let prunedQueue = 0;
+    let prunedAuditLogs = 0;
+
+    try {
+      // 1. Prune processed/stale sync queue entries older than 24 hours
+      const queueItems = await this.getItems<SyncAction>(STORES.SYNC_QUEUE);
+      const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+
+      for (const item of queueItems) {
+        if (item.status === 'processing' && item.timestamp < oneDayAgo) {
+          if (item.id !== undefined) {
+            await this.deleteItem(STORES.SYNC_QUEUE, item.id);
+            prunedQueue++;
+          }
+        }
+      }
+
+      // 2. Prune old audit logs keeping only latest 1,000 logs
+      const logs = await this.getItems<AuditLog>(STORES.AUDIT_LOGS);
+      if (logs.length > 1000) {
+        const sorted = [...logs].sort((a, b) => b.timestamp - a.timestamp);
+        const toDelete = sorted.slice(1000);
+        for (const log of toDelete) {
+          await this.deleteItem(STORES.AUDIT_LOGS, log.id);
+          prunedAuditLogs++;
+        }
+      }
+    } catch (err) {
+      console.warn('[IndexedDB] Optimization error:', err);
+    }
+
+    return {
+      prunedQueue,
+      prunedAuditLogs,
+      freedRecords: prunedQueue + prunedAuditLogs,
+    };
   }
 }
 

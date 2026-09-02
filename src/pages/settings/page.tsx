@@ -8,6 +8,7 @@ import { Store, ArrowLeft, Save, Percent, X, Building2, MapPin, Hash, ClipboardL
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { UserManagement } from '@/components/admin/user-management';
+import { DatabaseHealth } from '@/components/admin/database-health';
 import { AuthGuard } from '@/components/auth/auth-guard';
 import { clearDatabaseAll } from '@/lib/db/sync-queue';
 
@@ -282,6 +283,8 @@ export default function SettingsPage() {
               <ChevronRight className="w-6 h-6 text-gray-300 group-hover:text-orange-600 transition-all" />
             </Link>
           </div>
+
+          <DatabaseHealth />
 
           <div className="mt-6 p-8 bg-orange-50 rounded-[2.5rem] border border-orange-100 flex items-start gap-6">
             <div className="bg-orange-600 p-3 rounded-xl text-white shadow-lg shadow-orange-200">

@@ -53,6 +53,15 @@ export class BaseService<T extends { id: string; isDeleted?: boolean; updatedAt:
   }
 
   /**
+   * Fast indexed query using IndexedDB secondary indexes.
+   * Drastically reduces memory consumption and execution time compared to full scans.
+   */
+  async getByIndex(indexName: string, queryKey?: IDBValidKey | IDBKeyRange, limit?: number): Promise<T[]> {
+    const items = await dbUtil.getItemsByIndex<T>(this.storeName, indexName, queryKey, limit);
+    return items.filter(item => !item.isDeleted);
+  }
+
+  /**
    * Helper for complex filtering that might eventually happen on the server.
    */
   async query(predicate: (item: T) => boolean): Promise<T[]> {

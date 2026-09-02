@@ -10,8 +10,8 @@ class CustomerService extends BaseService<Customer> {
   }
 
   async getByBranch(branchId: string): Promise<Customer[]> {
-    const all = await this.getAll();
-    return all.filter(c => !c.isDeleted && c.branchId === branchId && this.isValidCustomer(c));
+    const items = await this.getByIndex('branchId', branchId);
+    return items.filter(c => this.isValidCustomer(c));
   }
 
   override async getAll(): Promise<Customer[]> {
@@ -27,8 +27,8 @@ class CustomerService extends BaseService<Customer> {
   }
 
   async getCreditHistory(customerId: string): Promise<CreditEntry[]> {
-    const all = await dbUtil.getItems<CreditEntry>(STORES.CREDIT_LOG);
-    return all.filter(e => e.customerId === customerId && !e.isDeleted);
+    const items = await dbUtil.getItemsByIndex<CreditEntry>(STORES.CREDIT_LOG, 'customerId', customerId);
+    return items.filter(e => !e.isDeleted);
   }
 
   async getAllCreditHistory(branchId?: string): Promise<CreditEntry[]> {
