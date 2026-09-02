@@ -29,6 +29,8 @@ interface ReceiptData {
   deliveryFee?: number;
   additionalCharges?: number;
   additionalChargesNote?: string;
+  discount?: number;
+  discountNote?: string;
   splitDetails?: {
     cash: number;
     gcash: number;

@@ -152,6 +152,8 @@ export default function POSPage() {
     deliveryFee?: number;
     additionalCharges?: number;
     additionalChargesNote?: string;
+    discount?: number;
+    discountNote?: string;
     splitDetails?: {
       cash: number;
       gcash: number;
@@ -169,7 +171,8 @@ export default function POSPage() {
       
       const deliveryFee = paymentDetails.deliveryFee || 0;
       const additionalCharges = paymentDetails.additionalCharges || 0;
-      const grandTotal = total + deliveryFee + additionalCharges;
+      const discount = paymentDetails.discount || 0;
+      const grandTotal = Math.max(0, total + deliveryFee + additionalCharges - discount);
 
       // Calculate VAT if enabled
       let vatableSales = 0;
@@ -213,6 +216,8 @@ export default function POSPage() {
         deliveryFee,
         additionalCharges,
         additionalChargesNote: paymentDetails.additionalChargesNote || undefined,
+        discount,
+        discountNote: paymentDetails.discountNote || undefined,
       });
 
       await auditService.log('TRANSACTION_COMPLETE', JSON.stringify({
@@ -221,6 +226,7 @@ export default function POSPage() {
         total: grandTotal,
         deliveryFee,
         additionalCharges,
+        discount,
         itemsCount: cart.length,
         paymentMethod: paymentDetails.paymentMethod,
         customerId: paymentDetails.customerId || undefined
@@ -266,6 +272,8 @@ export default function POSPage() {
         deliveryFee,
         additionalCharges,
         additionalChargesNote: paymentDetails.additionalChargesNote || undefined,
+        discount,
+        discountNote: paymentDetails.discountNote || undefined,
       }, async () => {
         // Automatically create a new empty ticket by rotating after receipt is closed
         await rotateTicket();

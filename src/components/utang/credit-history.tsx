@@ -103,15 +103,22 @@ export function CreditHistory({ customer, getHistory, onDeleteEntry, onClose }: 
                     </div>
                     <div className="min-w-0">
                       <p className="font-black text-gray-900 text-sm truncate">{entry.description || 'No description provided'}</p>
-                      <div className="flex items-center gap-2 text-[11px] text-gray-400 font-medium mt-0.5">
-                        <Calendar className="w-3 h-3 text-gray-400" />
-                        {new Date(entry.timestamp).toLocaleDateString('en-PH', { 
-                          month: 'short', 
-                          day: 'numeric', 
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-400 font-medium mt-0.5">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-gray-400" />
+                          {new Date(entry.timestamp).toLocaleDateString('en-PH', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </div>
+                        {entry.discount && entry.discount > 0 && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-700 text-[10px] font-bold">
+                            Disc: ₱{entry.discount.toFixed(2)} {entry.discountNote ? `(${entry.discountNote})` : ''}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

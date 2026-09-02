@@ -40,6 +40,8 @@ interface ReceiptProps {
   deliveryFee?: number;
   additionalCharges?: number;
   additionalChargesNote?: string;
+  discount?: number;
+  discountNote?: string;
 }
 
 const ReceiptHeader = ({ store, branch, ticketNumber, orNumber, timestamp, type }: any) => (
@@ -141,13 +143,18 @@ const ReceiptFooter = ({
   splitDetails,
   deliveryFee,
   additionalCharges,
-  additionalChargesNote
+  additionalChargesNote,
+  discount,
+  discountNote
 }: any) => {
   const vatExempt = 0;
   const zeroRated = 0;
   
-  const hasExtraFees = type === 'sales' && ((deliveryFee || 0) > 0 || (additionalCharges || 0) > 0);
-  const itemsSubtotal = total - (deliveryFee || 0) - (additionalCharges || 0);
+  const discountVal = discount || 0;
+  const deliveryVal = deliveryFee || 0;
+  const addChargesVal = additionalCharges || 0;
+  const hasExtraFees = type === 'sales' && (deliveryVal > 0 || addChargesVal > 0 || discountVal > 0);
+  const itemsSubtotal = total - deliveryVal - addChargesVal + discountVal;
 
   return (
     <>
@@ -159,16 +166,22 @@ const ReceiptFooter = ({
               <span>Items Subtotal:</span>
               <span>₱{itemsSubtotal.toFixed(2)}</span>
             </div>
-            {deliveryFee > 0 && (
+            {deliveryVal > 0 && (
               <div className="flex justify-between">
                 <span>Delivery Fee:</span>
-                <span>₱{deliveryFee.toFixed(2)}</span>
+                <span>₱{deliveryVal.toFixed(2)}</span>
               </div>
             )}
-            {additionalCharges > 0 && (
+            {addChargesVal > 0 && (
               <div className="flex justify-between">
                 <span>Add. Charges ({additionalChargesNote || 'Other'}):</span>
-                <span>₱{additionalCharges.toFixed(2)}</span>
+                <span>₱{addChargesVal.toFixed(2)}</span>
+              </div>
+            )}
+            {discountVal > 0 && (
+              <div className="flex justify-between font-bold">
+                <span>Discount ({discountNote || 'Discount'}):</span>
+                <span>-₱{discountVal.toFixed(2)}</span>
               </div>
             )}
           </div>
@@ -282,7 +295,9 @@ export function Receipt({
   splitDetails,
   deliveryFee,
   additionalCharges,
-  additionalChargesNote
+  additionalChargesNote,
+  discount,
+  discountNote
 }: ReceiptProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
 
@@ -413,6 +428,8 @@ export function Receipt({
               deliveryFee={deliveryFee}
               additionalCharges={additionalCharges}
               additionalChargesNote={additionalChargesNote}
+              discount={discount}
+              discountNote={discountNote}
             />
           </div>
         </div>

@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Customer } from '@/lib/db/idb';
 import { useCustomers } from '@/lib/hooks/use-customers';
 import { CustomerForm } from '@/components/utang/customer-form';
-import { X, Check, Coins, Wallet, UserCircle, UserPlus, Layers, Search, Truck, Plus } from 'lucide-react';
+import { X, Check, Coins, Wallet, UserCircle, UserPlus, Layers, Search, Truck, Plus, Tag, Percent } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface PaymentModalProps {
@@ -21,6 +21,8 @@ interface PaymentModalProps {
     deliveryFee?: number;
     additionalCharges?: number;
     additionalChargesNote?: string;
+    discount?: number;
+    discountNote?: string;
     splitDetails?: {
       cash: number;
       gcash: number;
@@ -45,10 +47,12 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
   const [customerSearch, setCustomerSearch] = useState<string>('');
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
 
-  // Delivery & additional charges
+  // Delivery & additional charges & discount
   const [deliveryFee, setDeliveryFee] = useState<string>('');
   const [additionalCharges, setAdditionalCharges] = useState<string>('');
   const [additionalChargesNote, setAdditionalChargesNote] = useState<string>('');
+  const [discount, setDiscount] = useState<string>('');
+  const [discountNote, setDiscountNote] = useState<string>('');
 
   // Split Payment details
   const [splitCash, setSplitCash] = useState<string>('');
@@ -59,8 +63,21 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
   const computedTotal = useMemo(() => {
     const delivery = parseFloat(deliveryFee) || 0;
     const addCharges = parseFloat(additionalCharges) || 0;
-    return total + delivery + addCharges;
-  }, [total, deliveryFee, additionalCharges]);
+    const discountVal = parseFloat(discount) || 0;
+    return Math.max(0, total + delivery + addCharges - discountVal);
+  }, [total, deliveryFee, additionalCharges, discount]);
+
+  // Preset discount handler
+  const handleApplyPresetDiscount = (percent: number, label: string) => {
+    if (percent === 0) {
+      setDiscount('');
+      setDiscountNote('');
+    } else {
+      const discountAmount = (total * (percent / 100));
+      setDiscount(discountAmount.toFixed(2));
+      setDiscountNote(label);
+    }
+  };
 
   // Automatically update Split Credit (unpaid/remaining balance) based on entered Cash and GCash
   useEffect(() => {
@@ -115,6 +132,8 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
       deliveryFee: parseFloat(deliveryFee) || 0,
       additionalCharges: parseFloat(additionalCharges) || 0,
       additionalChargesNote: additionalChargesNote.trim() || undefined,
+      discount: parseFloat(discount) || 0,
+      discountNote: discountNote.trim() || undefined,
     };
 
     if (paymentMethod === 'cash') {
@@ -253,6 +272,69 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
                 />
               </div>
             )}
+
+            {/* Discount Section under Delivery Fee & Additional Charges */}
+            <div className="pt-2 border-t border-orange-100/50 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                  <Tag className="w-3 h-3 text-orange-500" /> Discount
+                </label>
+                {/* Quick Presets */}
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleApplyPresetDiscount(0, '')}
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-black transition-all ${!discount || parseFloat(discount) === 0 ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                  >
+                    None
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyPresetDiscount(5, '5% Promo Discount')}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-black bg-orange-100/80 text-orange-700 hover:bg-orange-200 transition-all"
+                  >
+                    5%
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyPresetDiscount(10, '10% Promo Discount')}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-black bg-orange-100/80 text-orange-700 hover:bg-orange-200 transition-all"
+                  >
+                    10%
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyPresetDiscount(20, 'Senior / PWD (20%)')}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-black bg-purple-100 text-purple-700 hover:bg-purple-200 transition-all flex items-center gap-0.5"
+                    title="Senior Citizen / PWD 20% Discount"
+                  >
+                    <Percent className="w-2.5 h-2.5" /> 20% Senior/PWD
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-xs">₱</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={discount}
+                    onChange={(e) => setDiscount(e.target.value)}
+                    className="w-full pl-7 pr-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-bold text-gray-800 focus:border-orange-500 outline-none transition-all"
+                    placeholder="Discount Amount (₱0.00)"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={discountNote}
+                  onChange={(e) => setDiscountNote(e.target.value)}
+                  className="w-full px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-bold text-gray-800 focus:border-orange-500 outline-none transition-all"
+                  placeholder="Reason (e.g. Senior, PWD, Promo)"
+                />
+              </div>
+            </div>
 
             <div className="flex justify-between items-center pt-3 border-t border-orange-100/50">
               <span className="text-xs font-black text-gray-600 uppercase tracking-widest">Total Amount Due</span>

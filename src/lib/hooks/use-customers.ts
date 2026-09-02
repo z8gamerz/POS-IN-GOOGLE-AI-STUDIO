@@ -83,7 +83,9 @@ export function useCustomers(branchId?: string) {
     amount: number, 
     description: string, 
     type: 'credit' | 'payment',
-    customTimestamp?: number
+    customTimestamp?: number,
+    discount?: number,
+    discountNote?: string
   ) => {
     if (!branchId) throw new Error('Branch ID is required to record credit');
     const customer = customers.find(c => c.id === customerId);
@@ -91,19 +93,24 @@ export function useCustomers(branchId?: string) {
 
     const now = Date.now();
     const entryTimestamp = customTimestamp && !isNaN(customTimestamp) ? customTimestamp : now;
+    const discountVal = (type === 'payment' && discount && discount > 0) ? discount : 0;
+    const totalReduction = type === 'credit' ? amount : (amount + discountVal);
+
     const entry: Omit<CreditEntry, 'updatedAt' | 'isDeleted'> = {
       id: crypto.randomUUID(),
       customerId,
       branchId,
-      amount: type === 'credit' ? amount : -amount,
+      amount: type === 'credit' ? amount : -totalReduction,
       type,
       description,
+      discount: discountVal > 0 ? discountVal : undefined,
+      discountNote: discountNote && discountNote.trim() ? discountNote.trim() : undefined,
       timestamp: entryTimestamp,
     };
 
     await customerService.recordCredit(entry);
     
-    // Distribute payment to unpaid/partially paid credit transactions
+    // Distribute payment (plus discount) to unpaid/partially paid credit transactions
     if (type === 'payment') {
       try {
         const allTransactions = await transactionService.getByCustomer(customerId);
@@ -111,7 +118,7 @@ export function useCustomers(branchId?: string) {
           .filter(t => (t.paymentMethod === 'credit' || t.paymentMethod === 'split') && !t.isPaid)
           .sort((a, b) => a.timestamp - b.timestamp);
         
-        let paymentLeft = amount;
+        let paymentLeft = totalReduction;
         for (const t of unpaid) {
           if (paymentLeft <= 0) break;
           const initialBalance = t.paymentMethod === 'credit' ? t.total : (t.splitDetails?.credit || t.creditAmount || t.total);
@@ -135,7 +142,7 @@ export function useCustomers(branchId?: string) {
 
     const updatedCustomer = {
       ...customer,
-      totalUtang: customer.totalUtang + entry.amount,
+      totalUtang: Math.max(0, customer.totalUtang + entry.amount),
       updatedAt: now,
     };
     

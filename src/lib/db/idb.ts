@@ -68,6 +68,8 @@ export type Transaction = {
   deliveryFee?: number;
   additionalCharges?: number;
   additionalChargesNote?: string;
+  discount?: number;
+  discountNote?: string;
   splitDetails?: {
     cash: number;
     gcash: number;
@@ -104,9 +106,11 @@ export type CreditEntry = {
   id: string;
   customerId: string;
   branchId: string; // Reference to Branch
-  amount: number; // Positive for utang, negative for payment
+  amount: number; // Positive for utang, negative for payment (includes discount if granted)
   type: 'credit' | 'payment';
   description: string;
+  discount?: number; // Discount granted upon payment
+  discountNote?: string;
   timestamp: number;
   updatedAt: number;
   isDeleted?: boolean;
