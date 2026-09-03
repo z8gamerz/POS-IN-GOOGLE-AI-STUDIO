@@ -62,16 +62,16 @@ export function useCustomers(branchId?: string) {
   const deleteCreditEntry = async (entryId: string, customerId: string) => {
     await customerService.deleteCreditEntry(entryId);
 
-    // Recalculate customer total utang from remaining active clean credit logs
+    // Recalculate customer total utang from remaining active credit logs
     const remainingHistory = await customerService.getCreditHistory(customerId);
-    const newTotalUtang = Math.max(0, remainingHistory.reduce((sum, e) => sum + e.amount, 0));
+    const newTotalUtang = remainingHistory.reduce((sum, e) => sum + e.amount, 0);
 
     const customer = customers.find(c => c.id === customerId);
     if (customer) {
       const now = Date.now();
       await customerService.update({
         ...customer,
-        totalUtang: newTotalUtang,
+        totalUtang: Math.max(0, newTotalUtang),
         updatedAt: now,
       });
     }
@@ -108,10 +108,10 @@ export function useCustomers(branchId?: string) {
       timestamp: entryTimestamp,
     };
 
-    const wasRecorded = await customerService.recordCredit(entry);
+    await customerService.recordCredit(entry);
     
-    // Distribute payment (plus discount) to unpaid/partially paid credit transactions if recorded
-    if (wasRecorded && type === 'payment') {
+    // Distribute payment (plus discount) to unpaid/partially paid credit transactions
+    if (type === 'payment') {
       try {
         const allTransactions = await transactionService.getByCustomer(customerId);
         const unpaid = allTransactions
@@ -140,25 +140,15 @@ export function useCustomers(branchId?: string) {
       }
     }
 
-    // Always recalculate true balance directly from clean deduplicated credit ledger
-    const freshHistory = await customerService.getCreditHistory(customerId);
-    const newTotalUtang = Math.max(0, freshHistory.reduce((sum, e) => sum + e.amount, 0));
-
     const updatedCustomer = {
       ...customer,
-      totalUtang: newTotalUtang,
+      totalUtang: Math.max(0, customer.totalUtang + entry.amount),
       updatedAt: now,
     };
     
     await customerService.update(updatedCustomer);
     await fetchCustomers();
   };
-
-  const deduplicateCreditEntries = useCallback(async () => {
-    const res = await customerService.deduplicateCreditEntries();
-    await fetchCustomers();
-    return res;
-  }, [fetchCustomers]);
 
   const getCreditHistory = useCallback(async (customerId: string) => {
     const history = await customerService.getCreditHistory(customerId);
@@ -179,7 +169,6 @@ export function useCustomers(branchId?: string) {
     deleteCustomer,
     deleteCreditEntry,
     recordCredit,
-    deduplicateCreditEntries,
     getCreditHistory,
     getAllCreditHistory,
     refresh: fetchCustomers,

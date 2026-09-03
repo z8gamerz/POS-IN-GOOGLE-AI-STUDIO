@@ -139,7 +139,7 @@ export default function UtangPage() {
               </button>
             </div>
           </div>
-
+  
           <div className="relative mb-8">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input

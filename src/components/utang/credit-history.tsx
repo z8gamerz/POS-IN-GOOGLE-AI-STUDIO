@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { Customer, CreditEntry } from '@/lib/db/idb';
 import { X, ArrowUpRight, ArrowDownLeft, History, Calendar, Trash2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useDevice } from '@/lib/hooks/use-device';
 
 interface CreditHistoryProps {
   customer: Customer;
@@ -14,7 +13,6 @@ interface CreditHistoryProps {
 }
 
 export function CreditHistory({ customer, getHistory, onDeleteEntry, onClose }: CreditHistoryProps) {
-  const { isMobile } = useDevice();
   const [history, setHistory] = useState<CreditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -52,27 +50,19 @@ export function CreditHistory({ customer, getHistory, onDeleteEntry, onClose }: 
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <motion.div
-        initial={isMobile ? { opacity: 0, y: '100%' } : { opacity: 0, scale: 0.95, y: 20 }}
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={isMobile ? { opacity: 0, y: '100%' } : { opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="bg-white w-full max-w-2xl rounded-t-[2.25rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[92dvh] sm:max-h-[85vh] relative"
+        className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[85vh] relative"
       >
-        {isMobile && (
-          <div className="w-full pt-3 pb-1 flex justify-center items-center bg-gray-50/50">
-            <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
-          </div>
-        )}
-
-        <div className="px-6 sm:px-8 py-5 sm:py-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+        <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
           <div className="flex items-center gap-3">
             <div className="bg-blue-500 p-2.5 rounded-2xl text-white shadow-md shadow-blue-200">
               <History className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg sm:text-xl font-black text-gray-900">{customer.name}</h3>
+              <h3 className="text-xl font-black text-gray-900">{customer.name}</h3>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
                 Credit &amp; Payment History ({history.length} records)
               </p>
