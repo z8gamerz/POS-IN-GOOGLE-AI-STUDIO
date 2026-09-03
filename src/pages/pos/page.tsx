@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useProducts } from '@/lib/hooks/use-products';
 import { useCart } from '@/lib/hooks/use-cart';
 import { useTransactions } from '@/lib/hooks/use-transactions';
@@ -65,6 +65,7 @@ export default function POSPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const isCheckingOutRef = useRef(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isEWalletOpen, setIsEWalletOpen] = useState(false);
   const [completedTicket, setCompletedTicket] = useState<string>('');
@@ -161,8 +162,9 @@ export default function POSPage() {
       credit: number;
     };
   }) => {
-    if (cart.length === 0 || isCheckingOut || !currentBranchId) return;
+    if (cart.length === 0 || isCheckingOut || isCheckingOutRef.current || !currentBranchId) return;
     
+    isCheckingOutRef.current = true;
     setIsCheckingOut(true);
     try {
       const now = Date.now();
@@ -284,6 +286,7 @@ export default function POSPage() {
     } catch (error) {
       console.error('Checkout failed:', error);
     } finally {
+      isCheckingOutRef.current = false;
       setIsCheckingOut(false);
     }
   };

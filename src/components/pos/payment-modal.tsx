@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Customer } from '@/lib/db/idb';
 import { useCustomers } from '@/lib/hooks/use-customers';
 import { CustomerForm } from '@/components/utang/customer-form';
@@ -71,6 +71,17 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
   const [splitGCashRef, setSplitGCashRef] = useState<string>('');
   const [splitCredit, setSplitCredit] = useState<string>('');
 
+  // Prevent double submissions on rapid clicks
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsSubmitting(false);
+      isSubmittingRef.current = false;
+    }
+  }, [isOpen]);
+
   const computedTotal = useMemo(() => {
     const delivery = parseFloat(deliveryFee) || 0;
     const addCharges = parseFloat(additionalCharges) || 0;
@@ -137,7 +148,10 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid) return;
+    if (!isValid || isSubmittingRef.current || isSubmitting) return;
+
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
 
     const extraFields = {
       deliveryFee: parseFloat(deliveryFee) || 0,
@@ -147,41 +161,48 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
       discountNote: discountNote.trim() || undefined,
     };
 
-    if (paymentMethod === 'cash') {
-      onConfirm({
-        paymentMethod: 'cash',
-        amountTendered: parseFloat(amountTendered),
-        ...extraFields,
-      });
-    } else if (paymentMethod === 'gcash') {
-      onConfirm({
-        paymentMethod: 'gcash',
-        referenceNumber: referenceNumber.trim(),
-        ...extraFields,
-      });
-    } else if (paymentMethod === 'credit') {
-      onConfirm({
-        paymentMethod: 'credit',
-        customerId: selectedCustomerId,
-        creditAmount: computedTotal,
-        ...extraFields,
-      });
-    } else if (paymentMethod === 'split') {
-      const creditVal = parseFloat(splitCredit) || 0;
-      onConfirm({
-        paymentMethod: 'split',
-        customerId: creditVal > 0 ? selectedCustomerId : undefined,
-        creditAmount: creditVal > 0 ? creditVal : undefined,
-        ...extraFields,
-        splitDetails: {
-          cash: parseFloat(splitCash) || 0,
-          gcash: parseFloat(splitGCash) || 0,
-          gcashRef: splitGCashRef.trim() || undefined,
-          credit: creditVal,
-        }
-      });
+    try {
+      if (paymentMethod === 'cash') {
+        onConfirm({
+          paymentMethod: 'cash',
+          amountTendered: parseFloat(amountTendered),
+          ...extraFields,
+        });
+      } else if (paymentMethod === 'gcash') {
+        onConfirm({
+          paymentMethod: 'gcash',
+          referenceNumber: referenceNumber.trim(),
+          ...extraFields,
+        });
+      } else if (paymentMethod === 'credit') {
+        onConfirm({
+          paymentMethod: 'credit',
+          customerId: selectedCustomerId,
+          creditAmount: computedTotal,
+          ...extraFields,
+        });
+      } else if (paymentMethod === 'split') {
+        const creditVal = parseFloat(splitCredit) || 0;
+        onConfirm({
+          paymentMethod: 'split',
+          customerId: creditVal > 0 ? selectedCustomerId : undefined,
+          creditAmount: creditVal > 0 ? creditVal : undefined,
+          ...extraFields,
+          splitDetails: {
+            cash: parseFloat(splitCash) || 0,
+            gcash: parseFloat(splitGCash) || 0,
+            gcashRef: splitGCashRef.trim() || undefined,
+            credit: creditVal,
+          }
+        });
+      }
+      onClose();
+    } finally {
+      setTimeout(() => {
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
+      }, 500);
     }
-    onClose();
   };
 
   const handleQuickAddCustomer = async (customerData: any) => {
@@ -688,15 +709,21 @@ export function PaymentModal({ isOpen, total, branchId, onClose, onConfirm }: Pa
             </button>
             <button
               type="submit"
-              disabled={!isValid}
+              disabled={!isValid || isSubmitting}
               className={`w-full sm:flex-[2] min-h-[48px] py-3.5 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-all font-black uppercase text-xs tracking-wider cursor-pointer border-none ${
-                isValid
+                isValid && !isSubmitting
                   ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-100'
                   : 'bg-gray-100 text-gray-400 shadow-none cursor-not-allowed'
               }`}
             >
-              <Check className="w-5 h-5 stroke-[3]" />
-              <span>CONFIRM PAYMENT</span>
+              {isSubmitting ? (
+                <span className="animate-spin border-2 border-white/30 border-t-white rounded-full w-5 h-5" />
+              ) : (
+                <>
+                  <Check className="w-5 h-5 stroke-[3]" />
+                  <span>CONFIRM PAYMENT</span>
+                </>
+              )}
             </button>
           </div>
         </form>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Customer } from '@/lib/db/idb';
 import { X, Save, ArrowUpRight, ArrowDownLeft, Coins, FileText, Calendar, Tag, Percent, Check } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -29,6 +29,7 @@ export function RecordTransaction({ customer, type, onSave, onClose }: RecordTra
   const [transactionDate, setTransactionDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [transactionTime, setTransactionTime] = useState(format(new Date(), 'HH:mm'));
   const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   const parsedAmount = parseFloat(amount) || 0;
@@ -57,6 +58,7 @@ export function RecordTransaction({ customer, type, onSave, onClose }: RecordTra
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSavingRef.current || isSaving) return;
     setError(null);
 
     if (!amount || parseFloat(amount) <= 0) {
@@ -71,6 +73,7 @@ export function RecordTransaction({ customer, type, onSave, onClose }: RecordTra
 
     if (!customer.id) return;
 
+    isSavingRef.current = true;
     setIsSaving(true);
     try {
       let customTimestamp: number | undefined;
@@ -96,6 +99,7 @@ export function RecordTransaction({ customer, type, onSave, onClose }: RecordTra
       console.error('Record failed:', error);
       setError('Failed to save transaction. Please try again.');
     } finally {
+      isSavingRef.current = false;
       setIsSaving(false);
     }
   };
