@@ -109,6 +109,8 @@ export type CreditEntry = {
   amount: number; // Positive for utang, negative for payment (includes discount if granted)
   type: 'credit' | 'payment';
   description: string;
+  transactionId?: string; // Associated POS transaction ID or Ticket ID
+  referenceNumber?: string; // Reference number or receipt/ticket number or unique client idempotency key
   discount?: number; // Discount granted upon payment
   discountNote?: string;
   timestamp: number;
@@ -210,7 +212,7 @@ export type Expense = {
 };
 
 const DB_NAME = 'SariSariPOS_DB';
-const DB_VERSION = 18; // Incremented for comprehensive indexing and storage exhaustion prevention
+const DB_VERSION = 19; // Incremented for credit_log duplicate prevention indexes and constraints
 
 export const STORES = {
   STORE_INFO: 'store_info',
@@ -347,6 +349,8 @@ class IndexedDBUtility {
         ensureIndex(creditStore, 'branchId', 'branchId');
         ensureIndex(creditStore, 'timestamp', 'timestamp');
         ensureIndex(creditStore, 'type', 'type');
+        ensureIndex(creditStore, 'transactionId', 'transactionId');
+        ensureIndex(creditStore, 'referenceNumber', 'referenceNumber');
         ensureIndex(creditStore, 'updatedAt', 'updatedAt');
         ensureIndex(creditStore, 'isDeleted', 'isDeleted');
         ensureIndex(creditStore, 'customer_deleted', ['customerId', 'isDeleted']);
@@ -427,8 +431,40 @@ class IndexedDBUtility {
     return new Promise((resolve, reject) => {
       const transaction = db.transaction(storeName, 'readwrite');
       const store = transaction.objectStore(storeName);
-      const request = store.add(item);
 
+      // Database-level uniqueness check for credit_log to prevent duplicate utang records
+      if (storeName === STORES.CREDIT_LOG) {
+        const creditItem = item as any;
+        const targetTxId = creditItem.transactionId ? String(creditItem.transactionId).trim() : '';
+        const targetRefNum = creditItem.referenceNumber ? String(creditItem.referenceNumber).trim().toLowerCase() : '';
+
+        if (targetTxId || targetRefNum) {
+          const allReq = store.getAll();
+          allReq.onsuccess = () => {
+            const allEntries: any[] = allReq.result || [];
+            const duplicate = allEntries.find(e => 
+              !e.isDeleted && (
+                (targetTxId && e.transactionId && String(e.transactionId).trim() === targetTxId) ||
+                (targetRefNum && e.referenceNumber && String(e.referenceNumber).trim().toLowerCase() === targetRefNum)
+              )
+            );
+
+            if (duplicate) {
+              const dupIdent = targetTxId ? `Transaction ID "${targetTxId}"` : `Reference Number "${creditItem.referenceNumber}"`;
+              reject(new Error(`Database Constraint: Duplicate credit entry with ${dupIdent} already exists.`));
+              return;
+            }
+
+            const request = store.add(item);
+            request.onsuccess = () => resolve(request.result as number | string);
+            request.onerror = () => reject(request.error);
+          };
+          allReq.onerror = () => reject(allReq.error);
+          return;
+        }
+      }
+
+      const request = store.add(item);
       request.onsuccess = () => resolve(request.result as number | string);
       request.onerror = () => reject(request.error);
     });

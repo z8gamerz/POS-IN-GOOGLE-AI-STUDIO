@@ -85,11 +85,13 @@ export function useCustomers(branchId?: string) {
     type: 'credit' | 'payment',
     customTimestamp?: number,
     discount?: number,
-    discountNote?: string
+    discountNote?: string,
+    transactionId?: string,
+    referenceNumber?: string
   ) => {
     if (!branchId) throw new Error('Branch ID is required to record credit');
     const customer = customers.find(c => c.id === customerId);
-    if (!customer) return;
+    if (!customer) throw new Error('Customer not found');
 
     const now = Date.now();
     const entryTimestamp = customTimestamp && !isNaN(customTimestamp) ? customTimestamp : now;
@@ -103,12 +105,15 @@ export function useCustomers(branchId?: string) {
       amount: type === 'credit' ? amount : -totalReduction,
       type,
       description,
+      transactionId: transactionId?.trim() || undefined,
+      referenceNumber: referenceNumber?.trim() || undefined,
       discount: discountVal > 0 ? discountVal : undefined,
       discountNote: discountNote && discountNote.trim() ? discountNote.trim() : undefined,
       timestamp: entryTimestamp,
     };
 
-    await customerService.recordCredit(entry);
+    // Database-level check and lock in customerService
+    const savedEntry = await customerService.recordCredit(entry);
     
     // Distribute payment (plus discount) to unpaid/partially paid credit transactions
     if (type === 'payment') {
@@ -140,14 +145,19 @@ export function useCustomers(branchId?: string) {
       }
     }
 
+    // Authoritatively recalculate customer total utang from credit ledger to guarantee zero drift
+    const remainingHistory = await customerService.getCreditHistory(customerId);
+    const newTotalUtang = remainingHistory.reduce((sum, e) => sum + e.amount, 0);
+
     const updatedCustomer = {
       ...customer,
-      totalUtang: Math.max(0, customer.totalUtang + entry.amount),
+      totalUtang: Math.max(0, newTotalUtang),
       updatedAt: now,
     };
     
     await customerService.update(updatedCustomer);
     await fetchCustomers();
+    return savedEntry;
   };
 
   const getCreditHistory = useCallback(async (customerId: string) => {

@@ -119,6 +119,11 @@ export function CreditHistory({ customer, getHistory, onDeleteEntry, onClose }: 
                             Disc: ₱{entry.discount.toFixed(2)} {entry.discountNote ? `(${entry.discountNote})` : ''}
                           </span>
                         )}
+                        {(entry.referenceNumber || entry.transactionId) && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-gray-200/80 text-gray-700 text-[10px] font-bold font-mono">
+                            Ref: {entry.referenceNumber || entry.transactionId}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

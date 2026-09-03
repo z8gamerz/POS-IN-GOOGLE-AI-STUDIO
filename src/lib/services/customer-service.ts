@@ -26,6 +26,37 @@ class CustomerService extends BaseService<Customer> {
     return true;
   }
 
+  private activeLocks = new Set<string>();
+
+  async findCreditByTransactionId(transactionId: string): Promise<CreditEntry | undefined> {
+    if (!transactionId || !transactionId.trim()) return undefined;
+    const target = transactionId.trim();
+    const items = await dbUtil.getItemsByIndex<CreditEntry>(STORES.CREDIT_LOG, 'transactionId', target);
+    const matched = items.find(e => !e.isDeleted);
+    if (matched) return matched;
+    
+    // Fallback scan if index pending
+    const all = await dbUtil.getItems<CreditEntry>(STORES.CREDIT_LOG);
+    return all.find(e => !e.isDeleted && e.transactionId && e.transactionId.trim() === target);
+  }
+
+  async findCreditByReferenceNumber(referenceNumber: string, branchId?: string): Promise<CreditEntry | undefined> {
+    if (!referenceNumber || !referenceNumber.trim()) return undefined;
+    const target = referenceNumber.trim().toLowerCase();
+    const items = await dbUtil.getItemsByIndex<CreditEntry>(STORES.CREDIT_LOG, 'referenceNumber', referenceNumber.trim());
+    const matched = items.find(e => !e.isDeleted && (!branchId || e.branchId === branchId));
+    if (matched) return matched;
+
+    // Fallback scan (case-insensitive)
+    const all = await dbUtil.getItems<CreditEntry>(STORES.CREDIT_LOG);
+    return all.find(e => 
+      !e.isDeleted && 
+      e.referenceNumber && 
+      e.referenceNumber.trim().toLowerCase() === target &&
+      (!branchId || e.branchId === branchId)
+    );
+  }
+
   async getCreditHistory(customerId: string): Promise<CreditEntry[]> {
     const items = await dbUtil.getItemsByIndex<CreditEntry>(STORES.CREDIT_LOG, 'customerId', customerId);
     return items.filter(e => !e.isDeleted);
@@ -56,15 +87,69 @@ class CustomerService extends BaseService<Customer> {
     await syncDb.update(STORES.CREDIT_LOG, updated);
   }
 
-  async recordCredit(entry: Omit<CreditEntry, 'updatedAt' | 'isDeleted'>): Promise<void> {
-    const now = Date.now();
-    const newEntry = {
-      ...entry,
-      updatedAt: now,
-      isDeleted: false,
-    } as CreditEntry;
-    
-    await syncDb.add(STORES.CREDIT_LOG, newEntry);
+  async recordCredit(entry: Omit<CreditEntry, 'updatedAt' | 'isDeleted'>): Promise<CreditEntry> {
+    const txId = entry.transactionId ? entry.transactionId.trim() : undefined;
+    const refNum = entry.referenceNumber ? entry.referenceNumber.trim() : undefined;
+
+    // 1. Concurrency Mutex Lock: Prevent concurrent or rapid multi-click submissions
+    const lockKey = txId 
+      ? `tx_${txId}` 
+      : refNum 
+        ? `ref_${entry.branchId}_${refNum.toLowerCase()}`
+        : `cust_${entry.customerId}_${entry.type}_${entry.amount}_${Math.floor(entry.timestamp / 3000)}`;
+
+    if (this.activeLocks.has(lockKey)) {
+      throw new Error(`Duplicate transaction prevented: A credit entry for this request is already processing.`);
+    }
+
+    this.activeLocks.add(lockKey);
+
+    try {
+      // 2. Database check: Verify transactionId uniqueness
+      if (txId) {
+        const existingTx = await this.findCreditByTransactionId(txId);
+        if (existingTx) {
+          throw new Error(`Duplicate Transaction: A credit record with Transaction ID "${txId}" already exists.`);
+        }
+      }
+
+      // 3. Database check: Verify referenceNumber uniqueness
+      if (refNum) {
+        const existingRef = await this.findCreditByReferenceNumber(refNum, entry.branchId);
+        if (existingRef) {
+          throw new Error(`Duplicate Reference: A credit record with Reference Number "${refNum}" already exists.`);
+        }
+      }
+
+      // 4. Multi-click debounce check: Detect identical rapid submissions within 4 seconds
+      const now = Date.now();
+      const allEntries = await dbUtil.getItems<CreditEntry>(STORES.CREDIT_LOG);
+      const recentDuplicate = allEntries.find(e => 
+        !e.isDeleted &&
+        e.customerId === entry.customerId &&
+        e.type === entry.type &&
+        Math.abs(e.amount - entry.amount) < 0.001 &&
+        e.description.trim().toLowerCase() === entry.description.trim().toLowerCase() &&
+        (now - e.timestamp) < 4000
+      );
+
+      if (recentDuplicate) {
+        throw new Error('Duplicate submission detected: A matching credit record was just recorded seconds ago.');
+      }
+
+      const newEntry: CreditEntry = {
+        ...entry,
+        transactionId: txId,
+        referenceNumber: refNum,
+        updatedAt: now,
+        isDeleted: false,
+      };
+      
+      await syncDb.add(STORES.CREDIT_LOG, newEntry);
+      return newEntry;
+    } finally {
+      this.activeLocks.delete(lockKey);
+    }
   }
 
   override async delete(id: string): Promise<void> {

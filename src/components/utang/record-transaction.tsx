@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Customer } from '@/lib/db/idb';
-import { X, Save, ArrowUpRight, ArrowDownLeft, Coins, FileText, Calendar, Tag, Percent, Check } from 'lucide-react';
+import { X, Save, ArrowUpRight, ArrowDownLeft, Coins, FileText, Calendar, Tag, Percent, Hash, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import { format } from 'date-fns';
 
@@ -16,14 +16,17 @@ interface RecordTransactionProps {
     type: 'credit' | 'payment', 
     customTimestamp?: number,
     discount?: number,
-    discountNote?: string
-  ) => Promise<void>;
+    discountNote?: string,
+    transactionId?: string,
+    referenceNumber?: string
+  ) => Promise<any>;
   onClose: () => void;
 }
 
 export function RecordTransaction({ customer, type, onSave, onClose }: RecordTransactionProps) {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState(type === 'payment' ? 'Payment for credit/utang' : '');
+  const [referenceNumber, setReferenceNumber] = useState('');
   const [discount, setDiscount] = useState('');
   const [discountNote, setDiscountNote] = useState('');
   const [transactionDate, setTransactionDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -35,6 +38,12 @@ export function RecordTransaction({ customer, type, onSave, onClose }: RecordTra
   const parsedDiscount = (type === 'payment' && parseFloat(discount)) ? parseFloat(discount) : 0;
   const totalDebtDeduction = parsedAmount + parsedDiscount;
   const projectedRemainingBalance = Math.max(0, customer.totalUtang - totalDebtDeduction);
+
+  const handleGenerateRef = () => {
+    const prefix = type === 'credit' ? 'UTANG' : 'PAY';
+    const randomSuffix = Math.floor(100000 + Math.random() * 900000);
+    setReferenceNumber(`${prefix}-${randomSuffix}`);
+  };
 
   const handleApplyPresetDiscount = (percent: number, label: string) => {
     if (percent === 0) {
@@ -57,6 +66,7 @@ export function RecordTransaction({ customer, type, onSave, onClose }: RecordTra
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
     setError(null);
 
     if (!amount || parseFloat(amount) <= 0) {
@@ -89,12 +99,14 @@ export function RecordTransaction({ customer, type, onSave, onClose }: RecordTra
         type, 
         customTimestamp,
         parsedDiscount > 0 ? parsedDiscount : undefined,
-        discountNote.trim() || undefined
+        discountNote.trim() || undefined,
+        undefined, // transactionId (auto-handled if POS, or custom)
+        referenceNumber.trim() || undefined
       );
       onClose();
-    } catch (error) {
-      console.error('Record failed:', error);
-      setError('Failed to save transaction. Please try again.');
+    } catch (err: any) {
+      console.error('Record failed:', err);
+      setError(err?.message || 'Failed to save transaction. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -254,6 +266,32 @@ export function RecordTransaction({ customer, type, onSave, onClose }: RecordTra
                 )}
               </div>
             )}
+
+            {/* Reference Number / Receipt # */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest">
+                  <Hash className="w-3 h-3" /> Reference / Ticket No. (Optional)
+                </label>
+                <button
+                  type="button"
+                  onClick={handleGenerateRef}
+                  className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline cursor-pointer"
+                >
+                  <Sparkles className="w-2.5 h-2.5" /> Auto-generate
+                </button>
+              </div>
+              <input
+                type="text"
+                value={referenceNumber}
+                onChange={(e) => setReferenceNumber(e.target.value)}
+                placeholder="e.g. REF-104928 or Ticket #"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-xs font-mono"
+              />
+              <p className="text-[10px] text-gray-400 mt-1 font-medium">
+                Unique reference prevents duplicate recording if clicked multiple times.
+              </p>
+            </div>
 
             <div>
               <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">

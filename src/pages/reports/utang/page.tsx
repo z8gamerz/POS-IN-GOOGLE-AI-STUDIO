@@ -330,6 +330,7 @@ export default function UtangReportsPage() {
         'Customer Name': cust?.name || 'Unknown Customer',
         'Customer Contact': cust?.contact || 'N/A',
         'Type': entry.type === 'credit' ? 'Utang (Credit)' : 'Bayad (Payment)',
+        'Reference / Ticket ID': entry.referenceNumber || entry.transactionId || 'N/A',
         'Amount (PHP)': Math.abs(entry.amount).toFixed(2),
         'Discount (PHP)': Number(entry.discount || 0).toFixed(2),
         'Discount Note': entry.discountNote || '',

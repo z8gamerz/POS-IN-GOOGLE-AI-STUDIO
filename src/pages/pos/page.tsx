@@ -196,7 +196,7 @@ export default function POSPage() {
       const initialRemainingCredit = isCredit ? grandTotal : (isSplitWithCredit ? paymentDetails.splitDetails?.credit : undefined);
 
       // 1. Create transaction as a ticket
-      await addTransaction({
+      const createdTx = await addTransaction({
         ticketNumber: ticketToFinalize,
         orNumber,
         items: cart,
@@ -246,12 +246,21 @@ export default function POSPage() {
 
       // 3. Record Credit / Utang balance if applicable
       if (paymentDetails.creditAmount && paymentDetails.customerId) {
-        await recordCredit(
-          paymentDetails.customerId,
-          paymentDetails.creditAmount,
-          `POS Purchase - Ticket ${ticketToFinalize}`,
-          'credit'
-        );
+        try {
+          await recordCredit(
+            paymentDetails.customerId,
+            paymentDetails.creditAmount,
+            `POS Purchase - Ticket ${ticketToFinalize}`,
+            'credit',
+            undefined,
+            undefined,
+            undefined,
+            createdTx.id,
+            paymentDetails.referenceNumber || ticketToFinalize
+          );
+        } catch (creditErr: any) {
+          console.warn('[POS Checkout] Credit recording check:', creditErr?.message || creditErr);
+        }
       }
 
       setCompletedTicket(ticketToFinalize);

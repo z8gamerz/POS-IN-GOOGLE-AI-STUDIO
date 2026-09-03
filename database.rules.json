@@ -91,7 +91,7 @@
     },
 
     "credit_log": {
-      ".indexOn": ["customerId", "branchId", "timestamp", "type", "updatedAt", "isDeleted"],
+      ".indexOn": ["customerId", "branchId", "timestamp", "type", "transactionId", "referenceNumber", "updatedAt", "isDeleted"],
       "$logId": {
         // Allow read/write if the log's customer belongs to an assigned branch
         ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('assignedBranchIds').child(root.child('customers').child(data.child('customerId').val()).child('branchId').val()).exists() || root.child('users').child(auth.uid).child('assignedBranchIds').val().contains(root.child('customers').child(data.child('customerId').val()).child('branchId').val()))",
@@ -101,6 +101,8 @@
         "customerId": { ".validate": "newData.isString()" },
         "amount": { ".validate": "newData.isNumber()" },
         "type": { ".validate": "newData.val() == 'credit' || newData.val() == 'payment'" },
+        "transactionId": { ".validate": "!newData.exists() || newData.isString()" },
+        "referenceNumber": { ".validate": "!newData.exists() || newData.isString()" },
         "timestamp": { ".validate": "newData.isNumber()" }
       }
     },

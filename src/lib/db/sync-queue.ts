@@ -153,7 +153,12 @@ export async function queueAction(
     const queue = await dbUtil.getItems<SyncAction>(STORES.SYNC_QUEUE);
     const existingAction = queue.find(a => 
       a.store === store && 
-      (a.payload.id === key || a.payload.key === key) &&
+      (
+        a.payload.id === key || 
+        a.payload.key === key ||
+        (store === STORES.CREDIT_LOG && payload.transactionId && a.payload.transactionId === payload.transactionId) ||
+        (store === STORES.CREDIT_LOG && payload.referenceNumber && a.payload.referenceNumber && String(a.payload.referenceNumber).trim().toLowerCase() === String(payload.referenceNumber).trim().toLowerCase())
+      ) &&
       (a.status === 'pending' || a.status === 'failed' || a.status === 'processing')
     );
 
@@ -471,6 +476,27 @@ export async function pullSync(): Promise<void> {
  */
 export const syncDb = {
   async add<T>(store: StoreName, item: T): Promise<any> {
+    // Database-level uniqueness check for credit logs to prevent duplicate utang records
+    if (store === STORES.CREDIT_LOG) {
+      const creditPayload = item as any;
+      const txId = creditPayload.transactionId ? String(creditPayload.transactionId).trim() : '';
+      const refNum = creditPayload.referenceNumber ? String(creditPayload.referenceNumber).trim().toLowerCase() : '';
+
+      if (txId || refNum) {
+        const existing = await dbUtil.getItems<any>(STORES.CREDIT_LOG);
+        const dup = existing.find(e => 
+          !e.isDeleted && (
+            (txId && e.transactionId && String(e.transactionId).trim() === txId) ||
+            (refNum && e.referenceNumber && String(e.referenceNumber).trim().toLowerCase() === refNum)
+          )
+        );
+        if (dup) {
+          const dupLabel = txId ? `Transaction ID "${txId}"` : `Reference Number "${creditPayload.referenceNumber}"`;
+          throw new Error(`Database Constraint Violation: Duplicate credit entry with ${dupLabel} already exists.`);
+        }
+      }
+    }
+
     const result = await dbUtil.addItem(store, item);
     await queueAction(store, 'CREATE', item);
     return result;
