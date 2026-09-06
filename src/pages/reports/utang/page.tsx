@@ -190,46 +190,6 @@ export default function UtangReportsPage() {
     }).sort((a, b) => b.timestamp - a.timestamp);
   }, [allEntries, selectedBranchId, selectedCustomerId, startDate, endDate, searchQuery, customerMap, datePreset]);
 
-  // Summary Metrics Calculation
-  const metrics = useMemo(() => {
-    let totalPaymentsPeriod = 0;
-    let totalCreditPeriod = 0;
-    let paymentCount = 0;
-    let creditCount = 0;
-
-    filteredEntries.forEach(entry => {
-      if (entry.type === 'payment') {
-        totalPaymentsPeriod += Math.abs(entry.amount);
-        paymentCount += 1;
-      } else {
-        totalCreditPeriod += entry.amount;
-        creditCount += 1;
-      }
-    });
-
-    // Store-wide current active balances
-    let totalOutstandingUtang = 0;
-    let activeBorrowersCount = 0;
-    customers.forEach(c => {
-      if (c.totalUtang > 0) {
-        totalOutstandingUtang += c.totalUtang;
-        activeBorrowersCount += 1;
-      }
-    });
-
-    const netFlow = totalCreditPeriod - totalPaymentsPeriod;
-
-    return {
-      totalPaymentsPeriod,
-      totalCreditPeriod,
-      paymentCount,
-      creditCount,
-      totalOutstandingUtang,
-      activeBorrowersCount,
-      netFlow,
-    };
-  }, [filteredEntries, customers]);
-
   // Customer Summary Breakdown Base List (with full credit dates metadata)
   const allCustomerBreakdown = useMemo(() => {
     return customers
@@ -248,7 +208,7 @@ export default function UtangReportsPage() {
       .map(cust => {
         const custEntries = allEntries.filter(e => e.customerId === cust.id && !e.isDeleted);
         
-        // All credit (utang) transactions, sorted newest first
+        // All credit (debt) transactions, sorted newest first
         const creditEntries = custEntries
           .filter(e => e.type === 'credit')
           .sort((a, b) => b.timestamp - a.timestamp);
@@ -317,6 +277,46 @@ export default function UtangReportsPage() {
         };
       });
   }, [customers, allEntries, selectedBranchId, selectedCustomerId, searchQuery, startDate, endDate, datePreset]);
+
+  // Summary Metrics Calculation
+  const metrics = useMemo(() => {
+    let totalPaymentsPeriod = 0;
+    let totalCreditPeriod = 0;
+    let paymentCount = 0;
+    let creditCount = 0;
+
+    filteredEntries.forEach(entry => {
+      if (entry.type === 'payment') {
+        totalPaymentsPeriod += Math.abs(entry.amount);
+        paymentCount += 1;
+      } else {
+        totalCreditPeriod += entry.amount;
+        creditCount += 1;
+      }
+    });
+
+    // Store or filtered branch active balances
+    let totalOutstandingUtang = 0;
+    let activeBorrowersCount = 0;
+    allCustomerBreakdown.forEach(item => {
+      if (item.currentBalance > 0) {
+        totalOutstandingUtang += item.currentBalance;
+        activeBorrowersCount += 1;
+      }
+    });
+
+    const netFlow = totalCreditPeriod - totalPaymentsPeriod;
+
+    return {
+      totalPaymentsPeriod,
+      totalCreditPeriod,
+      paymentCount,
+      creditCount,
+      totalOutstandingUtang,
+      activeBorrowersCount,
+      netFlow,
+    };
+  }, [filteredEntries, allCustomerBreakdown]);
 
   // Dynamic status counters for filter badges
   const filterCounts = useMemo(() => {
@@ -435,17 +435,33 @@ export default function UtangReportsPage() {
   // Export Detailed Transactions Ledger (CSV)
   const handleExportLedgerCSV = () => {
     const filteredEntries = allEntries.filter(entry => {
+      // Branch filter
       if (selectedBranchId !== 'all') {
         const cust = customers.find(c => c.id === entry.customerId);
         if (cust && cust.branchId !== selectedBranchId) return false;
       }
+      // Customer filter
       if (selectedCustomerId !== 'all' && entry.customerId !== selectedCustomerId) return false;
-      if (!startDate || !endDate) return true;
-      const entryDate = new Date(entry.timestamp);
-      return isWithinInterval(entryDate, {
-        start: startOfDay(new Date(startDate)),
-        end: endOfDay(new Date(endDate)),
-      });
+      
+      // Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const cust = customers.find(c => c.id === entry.customerId);
+        const custName = cust?.name?.toLowerCase() || '';
+        const custContact = cust?.contact?.toLowerCase() || '';
+        const desc = entry.description?.toLowerCase() || '';
+        if (!custName.includes(q) && !custContact.includes(q) && !desc.includes(q)) return false;
+      }
+
+      // Date interval filter
+      if (datePreset !== 'all' && startDate && endDate) {
+        const entryDate = new Date(entry.timestamp);
+        return isWithinInterval(entryDate, {
+          start: startOfDay(new Date(startDate)),
+          end: endOfDay(new Date(endDate)),
+        });
+      }
+      return true;
     });
 
     const data = filteredEntries.map(entry => {
@@ -463,7 +479,7 @@ export default function UtangReportsPage() {
       };
     });
 
-    downloadCSV(data, `credit-ledger-details-${startDate}-to-${endDate}.csv`);
+    downloadCSV(data, `credit-ledger-details-${datePreset}-${startDate}-to-${endDate}.csv`);
   };
 
   const handlePrint = () => {
@@ -481,20 +497,21 @@ export default function UtangReportsPage() {
         <div className="hidden print:block p-8 border-b-2 border-gray-900 mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-black uppercase text-black tracking-tight">{store?.name || 'Sari-Sari Store POS'}</h1>
+              <h1 className="text-2xl font-black uppercase text-black tracking-tight">{store?.name || 'Store POS'}</h1>
               <p className="text-xs text-gray-600 font-medium">{store?.address || 'Store Location'}</p>
               {store?.tin && <p className="text-xs text-gray-600">TIN: {store.tin}</p>}
             </div>
             <div className="text-right">
               <h2 className="text-lg font-black uppercase text-orange-700 tracking-wider">Customer Credit &amp; Balances Report</h2>
-              <p className="text-xs text-gray-700 font-bold mt-1">Period: {startDate} to {endDate}</p>
+              <p className="text-xs text-gray-700 font-bold mt-1">Period: {datePreset === 'all' ? 'All Time' : `${startDate} to ${endDate}`}</p>
               <p className="text-[11px] text-gray-600 font-semibold">
                 Filter: {
-                  balanceStatusFilter === 'all' ? 'All Customers' :
+                  balanceStatusFilter === 'all' ? (datePreset === 'all' ? 'All Customers' : 'All with Activity in Period') :
                   balanceStatusFilter === 'with_balance' ? 'Active Balance Only' :
                   balanceStatusFilter === 'borrowed_in_period' ? 'Borrowed in Selected Period' :
                   balanceStatusFilter === 'paid_in_period' ? 'Paid in Selected Period' :
-                  balanceStatusFilter === 'zero_balance' ? 'Fully Paid (Zero Balance)' : 'Overdue (>30 Days)'
+                  balanceStatusFilter === 'zero_balance' ? 'Fully Paid (Zero Balance)' : 
+                  balanceStatusFilter === 'all_directory' ? 'All Directory Customers' : 'Overdue (>30 Days)'
                 } | Branch: {selectedBranchId === 'all' ? 'All Branches' : (branchMap.get(selectedBranchId) || selectedBranchId)}
               </p>
               <p className="text-[10px] text-gray-500">Printed on: {format(new Date(), 'yyyy-MM-dd HH:mm:ss')}</p>
@@ -812,133 +829,115 @@ export default function UtangReportsPage() {
                     </div>
                   </div>
 
-                  {/* Dynamic Filter Pills & Active Period Indicator (No dropdown in summary as requested) */}
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-2 border-t border-gray-100 print:hidden">
-                    {/* Status Filter Pills */}
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setBalanceStatusFilter('all')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                          balanceStatusFilter === 'all'
-                            ? 'bg-orange-600 text-white shadow-xs'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        <span>{datePreset === 'all' ? 'All Customers' : 'All in Period'}</span>
-                        <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
-                          balanceStatusFilter === 'all' ? 'bg-orange-700 text-white' : 'bg-gray-200 text-gray-700'
-                        }`}>
-                          {datePreset === 'all' ? filterCounts.all : filterCounts.periodActivity}
-                        </span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setBalanceStatusFilter('paid_in_period')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                          balanceStatusFilter === 'paid_in_period'
-                            ? 'bg-green-600 text-white shadow-xs'
-                            : 'bg-green-50 text-green-700 hover:bg-green-100'
-                        }`}
-                      >
-                        <ArrowDownLeft className="w-3.5 h-3.5" />
-                        <span>Payers ({filterCounts.paidInPeriod})</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setBalanceStatusFilter('borrowed_in_period')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                          balanceStatusFilter === 'borrowed_in_period'
-                            ? 'bg-amber-600 text-white shadow-xs'
-                            : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-                        }`}
-                      >
-                        <Receipt className="w-3.5 h-3.5" />
-                        <span>Borrowers ({filterCounts.borrowedInPeriod})</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setBalanceStatusFilter('with_balance')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                          balanceStatusFilter === 'with_balance'
-                            ? 'bg-red-600 text-white shadow-xs'
-                            : 'bg-red-50 text-red-700 hover:bg-red-100'
-                        }`}
-                      >
-                        <span>With Balance</span>
-                        <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
-                          balanceStatusFilter === 'with_balance' ? 'bg-red-700 text-white' : 'bg-red-200 text-red-800'
-                        }`}>
-                          {filterCounts.withBalance}
-                        </span>
-                      </button>
-
-                      {datePreset === 'all' ? (
-                        <button
-                          type="button"
-                          onClick={() => setBalanceStatusFilter('zero_balance')}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                            balanceStatusFilter === 'zero_balance'
-                              ? 'bg-emerald-600 text-white shadow-xs'
-                              : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                          }`}
-                        >
-                          <span>Fully Paid (₱0)</span>
-                          <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
-                            balanceStatusFilter === 'zero_balance' ? 'bg-emerald-700 text-white' : 'bg-emerald-200 text-emerald-800'
-                          }`}>
-                            {filterCounts.zeroBalance}
-                          </span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setBalanceStatusFilter('all_directory')}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                            balanceStatusFilter === 'all_directory'
-                              ? 'bg-gray-800 text-white shadow-xs'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          <span>All Directory ({filterCounts.all})</span>
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => setBalanceStatusFilter('overdue_30d')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                          balanceStatusFilter === 'overdue_30d'
-                            ? 'bg-purple-600 text-white shadow-xs'
-                            : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
-                        }`}
-                      >
-                        <span>&gt;30 Days Overdue</span>
-                        <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
-                          balanceStatusFilter === 'overdue_30d' ? 'bg-purple-700 text-white' : 'bg-purple-200 text-purple-800'
-                        }`}>
-                          {filterCounts.overdue30d}
-                        </span>
-                      </button>
-                    </div>
-
-                    {/* Active Period Indicator Badge (Replaced dropdown) */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-600">
-                        <Calendar className="w-3.5 h-3.5 text-orange-600" />
-                        <span>Period: <strong className="text-gray-900 font-bold">{
-                          datePreset === 'today' ? 'Today' :
-                          datePreset === 'yesterday' ? 'Yesterday' :
-                          datePreset === 'week' ? 'Last 7 Days' :
-                          datePreset === 'month' ? 'This Month' :
-                          datePreset === 'all' ? 'All Time' :
-                          `${startDate} to ${endDate}`
-                        }</strong></span>
+                  {/* Dynamic Status Filter Pills */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-gray-100 print:hidden">
+                    <button
+                      type="button"
+                      onClick={() => setBalanceStatusFilter('all')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        balanceStatusFilter === 'all'
+                          ? 'bg-orange-600 text-white shadow-xs'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <span>{datePreset === 'all' ? 'All Customers' : 'All in Period'}</span>
+                      <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                        balanceStatusFilter === 'all' ? 'bg-orange-700 text-white' : 'bg-gray-200 text-gray-700'
+                      }`}>
+                        {datePreset === 'all' ? filterCounts.all : filterCounts.periodActivity}
                       </span>
-                    </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setBalanceStatusFilter('paid_in_period')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        balanceStatusFilter === 'paid_in_period'
+                          ? 'bg-green-600 text-white shadow-xs'
+                          : 'bg-green-50 text-green-700 hover:bg-green-100'
+                      }`}
+                    >
+                      <ArrowDownLeft className="w-3.5 h-3.5" />
+                      <span>Payers ({filterCounts.paidInPeriod})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setBalanceStatusFilter('borrowed_in_period')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        balanceStatusFilter === 'borrowed_in_period'
+                          ? 'bg-amber-600 text-white shadow-xs'
+                          : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                      }`}
+                    >
+                      <Receipt className="w-3.5 h-3.5" />
+                      <span>Borrowers ({filterCounts.borrowedInPeriod})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setBalanceStatusFilter('with_balance')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        balanceStatusFilter === 'with_balance'
+                          ? 'bg-red-600 text-white shadow-xs'
+                          : 'bg-red-50 text-red-700 hover:bg-red-100'
+                      }`}
+                    >
+                      <span>With Balance</span>
+                      <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                        balanceStatusFilter === 'with_balance' ? 'bg-red-700 text-white' : 'bg-red-200 text-red-800'
+                      }`}>
+                        {filterCounts.withBalance}
+                      </span>
+                    </button>
+
+                    {datePreset === 'all' ? (
+                      <button
+                        type="button"
+                        onClick={() => setBalanceStatusFilter('zero_balance')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          balanceStatusFilter === 'zero_balance'
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                        }`}
+                      >
+                        <span>Fully Paid (₱0)</span>
+                        <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                          balanceStatusFilter === 'zero_balance' ? 'bg-emerald-700 text-white' : 'bg-emerald-200 text-emerald-800'
+                        }`}>
+                          {filterCounts.zeroBalance}
+                        </span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setBalanceStatusFilter('all_directory')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          balanceStatusFilter === 'all_directory'
+                            ? 'bg-gray-800 text-white shadow-xs'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        <span>All Directory ({filterCounts.all})</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setBalanceStatusFilter('overdue_30d')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        balanceStatusFilter === 'overdue_30d'
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
+                      }`}
+                    >
+                      <span>&gt;30 Days Overdue</span>
+                      <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                        balanceStatusFilter === 'overdue_30d' ? 'bg-purple-700 text-white' : 'bg-purple-200 text-purple-800'
+                      }`}>
+                        {filterCounts.overdue30d}
+                      </span>
+                    </button>
                   </div>
                 </div>
 

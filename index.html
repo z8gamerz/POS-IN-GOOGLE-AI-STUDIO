@@ -14,6 +14,34 @@
     <meta name="apple-mobile-web-app-title" content="JHEFF POS" />
     <link rel="apple-touch-icon" href="/icon.svg" />
     <link rel="manifest" href="/manifest.json" />
+
+    <!-- Automatic Device & OS Detection for Native Device Typography -->
+    <script>
+      (function() {
+        try {
+          var ua = navigator.userAgent || '';
+          var platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+          var device = 'other';
+          
+          if (/iPad|iPhone|iPod/.test(ua) || (platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+            device = 'ios';
+          } else if (/Macintosh|MacIntel|MacPPC|Mac68K/.test(ua) || /Mac OS X/.test(ua)) {
+            device = 'macos';
+          } else if (/Android/.test(ua)) {
+            device = 'android';
+          } else if (/Win32|Win64|Windows|WinCE/.test(ua) || /Windows NT/.test(ua)) {
+            device = 'windows';
+          } else if (/Linux/.test(platform) || /Linux/.test(ua)) {
+            device = 'linux';
+          }
+          
+          document.documentElement.setAttribute('data-device', device);
+          document.documentElement.classList.add('device-' + device);
+        } catch (e) {
+          console.error('[Device Detection]', e);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

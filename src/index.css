@@ -1,12 +1,60 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;900&family=Outfit:wght@400;500;700;900&family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @variant dark (&:where(.dark, .dark *));
 
+/* Universal Device Auto-Detect Typography System */
+:root {
+  /* Default Universal Native System Font Stack (Auto-detected by modern browsers) */
+  --font-system-auto: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-display-auto: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono-auto: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* Apple iOS & iPadOS (iPhone, iPad, iPod) - San Francisco Native */
+html[data-device="ios"],
+.device-ios {
+  --font-system-auto: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display-auto: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro", "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Apple macOS (MacBook, iMac, Mac Mini) - San Francisco / SF Pro Native */
+html[data-device="macos"],
+.device-macos {
+  --font-system-auto: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display-auto: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro", "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Android Devices (Samsung, Xiaomi, Pixel, Oppo, Vivo, Realme, OnePlus, etc.) - Roboto & Noto Sans Native */
+html[data-device="android"],
+.device-android {
+  --font-system-auto: "Roboto", "Noto Sans", "Droid Sans", system-ui, -apple-system, sans-serif;
+  --font-display-auto: "Roboto", "Noto Sans", "Google Sans", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Windows Desktop & Tablets (Surface, Windows 10/11) - Segoe UI Native */
+html[data-device="windows"],
+.device-windows {
+  --font-system-auto: "Segoe UI", "Segoe UI Web (West European)", -apple-system, BlinkMacSystemFont, Tahoma, Geneva, Verdana, sans-serif;
+  --font-display-auto: "Segoe UI", "Segoe UI Web (West European)", -apple-system, BlinkMacSystemFont, Tahoma, Geneva, Verdana, sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+/* Linux / ChromeOS / POS Terminals */
+html[data-device="linux"],
+.device-linux {
+  --font-system-auto: "Ubuntu", "Cantarell", "DejaVu Sans", system-ui, sans-serif;
+  --font-display-auto: "Ubuntu", "Cantarell", "DejaVu Sans", system-ui, sans-serif;
+}
+
 @theme {
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-  --font-display: "Space Grotesk", "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: var(--font-system-auto);
+  --font-display: var(--font-display-auto);
+  --font-mono: var(--font-mono-auto);
 }
 
 @layer base {
@@ -14,6 +62,9 @@
     background-color: #F3F4F6;
     color: #111827;
     font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     transition: background-color 0.2s, color 0.2s;
   }
 
