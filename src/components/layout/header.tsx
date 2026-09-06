@@ -22,26 +22,98 @@ export function Header({ ticketNumber }: { ticketNumber?: string }) {
   const [syncSuccess, setSyncSuccess] = useState(false);
   const [hasSyncError, setHasSyncError] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showIosFullscreenTip, setShowIosFullscreenTip] = useState(false);
 
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+    const checkFullscreen = () => {
+      const doc = document as any;
+      const isFs = !!(
+        doc.fullscreenElement ||
+        doc.webkitFullscreenElement ||
+        doc.mozFullScreenElement ||
+        doc.msFullscreenElement ||
+        document.body.classList.contains('in-app-fullscreen')
+      );
+      setIsFullscreen(isFs);
     };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+
+    document.addEventListener('fullscreenchange', checkFullscreen);
+    document.addEventListener('webkitfullscreenchange', checkFullscreen);
+    document.addEventListener('mozfullscreenchange', checkFullscreen);
+    document.addEventListener('MSFullscreenChange', checkFullscreen);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', checkFullscreen);
+      document.removeEventListener('webkitfullscreenchange', checkFullscreen);
+      document.removeEventListener('mozfullscreenchange', checkFullscreen);
+      document.removeEventListener('MSFullscreenChange', checkFullscreen);
+    };
   }, []);
 
   const toggleFullscreen = async () => {
-    try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      } else {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
+    const doc = document as any;
+    const docEl = document.documentElement as any;
+
+    // 1. If currently in fullscreen or in-app-fullscreen, exit it
+    if (
+      doc.fullscreenElement ||
+      doc.webkitFullscreenElement ||
+      doc.mozFullScreenElement ||
+      doc.msFullscreenElement ||
+      document.body.classList.contains('in-app-fullscreen')
+    ) {
+      document.body.classList.remove('in-app-fullscreen');
+      setIsFullscreen(false);
+      try {
+        if (doc.exitFullscreen) {
+          await doc.exitFullscreen();
+        } else if (doc.webkitExitFullscreen) {
+          await doc.webkitExitFullscreen();
+        } else if (doc.mozCancelFullScreen) {
+          await doc.mozCancelFullScreen();
+        } else if (doc.msExitFullscreen) {
+          await doc.msExitFullscreen();
         }
+      } catch (e) {
+        console.warn('Exit fullscreen error:', e);
+      }
+      return;
+    }
+
+    // 2. Try native requestFullscreen with all vendor prefixes
+    try {
+      if (docEl.requestFullscreen) {
+        await docEl.requestFullscreen();
+        setIsFullscreen(true);
+        return;
+      } else if (docEl.webkitRequestFullscreen) {
+        await docEl.webkitRequestFullscreen();
+        setIsFullscreen(true);
+        return;
+      } else if (docEl.mozRequestFullScreen) {
+        await docEl.mozRequestFullScreen();
+        setIsFullscreen(true);
+        return;
+      } else if (docEl.msRequestFullscreen) {
+        await docEl.msRequestFullscreen();
+        setIsFullscreen(true);
+        return;
       }
     } catch (err) {
-      console.warn('Fullscreen error:', err);
+      console.warn('Native fullscreen request blocked or unsupported:', err);
+    }
+
+    // 3. Robust Fallback for iOS / mobile browsers where element.requestFullscreen is blocked or unavailable
+    document.body.classList.add('in-app-fullscreen');
+    setIsFullscreen(true);
+    window.scrollTo(0, 1);
+
+    // If iOS Safari, show helpful tip on how to install to Home Screen for 100% full screen
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isIOS) {
+      setShowIosFullscreenTip(true);
+      setTimeout(() => setShowIosFullscreenTip(false), 7000);
     }
   };
 
@@ -237,6 +309,34 @@ export function Header({ ticketNumber }: { ticketNumber?: string }) {
       <AnimatePresence>
         {isManagingBranches && (
           <BranchManagement onClose={() => setIsManagingBranches(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* iOS Safari Full Screen Tip Notification */}
+      <AnimatePresence>
+        {showIosFullscreenTip && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-20 left-4 right-4 sm:left-auto sm:right-6 sm:w-96 z-[100] bg-gray-900 text-white p-4 rounded-2xl shadow-2xl border border-gray-700 flex items-start gap-3 text-left"
+          >
+            <div className="bg-orange-500/20 text-orange-400 p-2 rounded-xl shrink-0 mt-0.5">
+              <Maximize className="w-5 h-5" />
+            </div>
+            <div className="flex-1 text-xs">
+              <p className="font-bold text-sm mb-1 text-white">Full Screen Mode (iOS)</p>
+              <p className="text-gray-300 leading-relaxed">
+                Naka-auto-fit na ang app sa inyong screen! Para sa 100% borderless na walang address bar sa iPhone Safari, i-tap ang <strong>Share (📤)</strong> &rarr; <strong>&quot;Add to Home Screen&quot;</strong>.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowIosFullscreenTip(false)}
+              className="text-gray-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer text-xs font-bold"
+            >
+              ✕
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
     </header>

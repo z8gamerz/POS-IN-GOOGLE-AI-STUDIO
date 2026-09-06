@@ -367,12 +367,12 @@ export default function POSPage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+      <div className="h-[100dvh] min-h-[100dvh] max-h-[100dvh] bg-gray-50 flex flex-col font-sans overflow-hidden">
         <Header ticketNumber={currentTicket} />
         
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
           {/* Product Selection Area */}
-          <div className="flex-1 p-3 sm:p-5 md:p-8 overflow-y-auto">
+          <div className="flex-1 p-3 sm:p-5 md:p-6 lg:p-8 overflow-y-auto">
             <div className="w-full">
               <div className="flex flex-col gap-6 mb-8">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -582,7 +582,7 @@ export default function POSPage() {
           </div>
   
           {/* Desktop Cart Sidebar */}
-          <div className="hidden lg:flex w-[450px] bg-white border-l-2 border-gray-100 flex-col shadow-2xl relative z-10">
+          <div className="hidden lg:flex w-[360px] xl:w-[420px] 2xl:w-[460px] shrink-0 bg-white border-l-2 border-gray-100 flex-col shadow-2xl relative z-10">
             <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
               <div className="flex items-center gap-4">
                 <div className="bg-orange-600 p-3 rounded-2xl text-white shadow-lg shadow-orange-100">
