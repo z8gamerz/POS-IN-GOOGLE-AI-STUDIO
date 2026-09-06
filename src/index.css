@@ -58,6 +58,11 @@ html[data-device="linux"],
 }
 
 @layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   body {
     background-color: #F3F4F6;
     color: #111827;
@@ -66,6 +71,10 @@ html[data-device="linux"],
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     transition: background-color 0.2s, color 0.2s;
+  }
+
+  table {
+    font-variant-numeric: tabular-nums;
   }
 
   html.dark body {

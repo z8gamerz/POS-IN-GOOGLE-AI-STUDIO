@@ -539,28 +539,28 @@ export default function UtangReportsPage() {
           </div>
         </div>
 
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto print:overflow-visible print:p-0">
-          <div className="max-w-7xl mx-auto space-y-6">
+        <main className="flex-1 w-full px-3 sm:px-5 md:px-6 lg:px-8 py-4 md:py-6 overflow-y-auto print:overflow-visible print:p-0">
+          <div className="w-full space-y-6">
             {/* Header / Title Bar */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm print:border-none print:shadow-none print:p-0">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 md:p-6 rounded-3xl border border-gray-100 shadow-sm print:border-none print:shadow-none print:p-0">
               <div className="flex items-center gap-4">
                 <Link
                   href="/utang"
-                  className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all text-gray-500 hover:text-gray-900 border border-gray-100 print:hidden cursor-pointer"
+                  className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all text-gray-600 hover:text-gray-900 border border-gray-200 print:hidden cursor-pointer"
                   title="Back to Credit Management"
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </Link>
                 <div>
                   <div className="flex items-center gap-2">
-                    <div className="bg-orange-500 text-white p-1.5 rounded-xl print:hidden">
+                    <div className="bg-orange-500 text-white p-2 rounded-xl print:hidden shadow-xs">
                       <Receipt className="w-5 h-5" />
                     </div>
                     <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
                       Customer Balances &amp; Credit Reports
                     </h1>
                   </div>
-                  <p className="text-xs md:text-sm text-gray-500 font-medium mt-0.5">
+                  <p className="text-xs md:text-sm text-gray-600 font-medium mt-1">
                     Customer balances summary with period credit issued, payments received, and full ledger access.
                   </p>
                 </div>
@@ -809,40 +809,40 @@ export default function UtangReportsPage() {
                 <p className="text-sm font-bold text-gray-500">Loading customer credit balances summary...</p>
               </div>
             ) : (
-              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden w-full">
                 {/* Header & Dynamic Controls */}
-                <div className="p-6 border-b border-gray-100 flex flex-col gap-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="p-5 md:p-6 border-b border-gray-100 flex flex-col gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <h2 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                      <h2 className="text-xl md:text-2xl font-black text-gray-900 flex items-center gap-2">
                         <Users className="w-5 h-5 text-orange-600" />
                         Customer Balances Summary
                       </h2>
-                      <p className="text-xs text-gray-500 font-medium mt-0.5">
+                      <p className="text-xs md:text-sm text-gray-600 font-medium mt-0.5">
                         Overview of customer balances, borrowing dates, and credit transactions for the selected period.
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                      <span className="text-xs md:text-sm font-bold text-gray-700 bg-gray-100 border border-gray-200 px-3.5 py-1.5 rounded-full">
                         {customerBreakdown.length} of {allCustomerBreakdown.length} Customers
                       </span>
                     </div>
                   </div>
 
                   {/* Dynamic Status Filter Pills */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-gray-100 print:hidden">
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100 print:hidden">
                     <button
                       type="button"
                       onClick={() => setBalanceStatusFilter('all')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs md:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
                         balanceStatusFilter === 'all'
                           ? 'bg-orange-600 text-white shadow-xs'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
                       }`}
                     >
                       <span>{datePreset === 'all' ? 'All Customers' : 'All in Period'}</span>
-                      <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
-                        balanceStatusFilter === 'all' ? 'bg-orange-700 text-white' : 'bg-gray-200 text-gray-700'
+                      <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${
+                        balanceStatusFilter === 'all' ? 'bg-orange-700 text-white' : 'bg-gray-200 text-gray-800'
                       }`}>
                         {datePreset === 'all' ? filterCounts.all : filterCounts.periodActivity}
                       </span>
@@ -851,41 +851,41 @@ export default function UtangReportsPage() {
                     <button
                       type="button"
                       onClick={() => setBalanceStatusFilter('paid_in_period')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs md:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
                         balanceStatusFilter === 'paid_in_period'
-                          ? 'bg-green-600 text-white shadow-xs'
-                          : 'bg-green-50 text-green-700 hover:bg-green-100'
+                          ? 'bg-green-700 text-white shadow-xs'
+                          : 'bg-green-50 text-green-800 hover:bg-green-100 border border-green-200'
                       }`}
                     >
-                      <ArrowDownLeft className="w-3.5 h-3.5" />
+                      <ArrowDownLeft className="w-4 h-4" />
                       <span>Payers ({filterCounts.paidInPeriod})</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setBalanceStatusFilter('borrowed_in_period')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs md:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
                         balanceStatusFilter === 'borrowed_in_period'
                           ? 'bg-amber-600 text-white shadow-xs'
-                          : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                          : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-200'
                       }`}
                     >
-                      <Receipt className="w-3.5 h-3.5" />
+                      <Receipt className="w-4 h-4" />
                       <span>Borrowers ({filterCounts.borrowedInPeriod})</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setBalanceStatusFilter('with_balance')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs md:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
                         balanceStatusFilter === 'with_balance'
-                          ? 'bg-red-600 text-white shadow-xs'
-                          : 'bg-red-50 text-red-700 hover:bg-red-100'
+                          ? 'bg-red-700 text-white shadow-xs'
+                          : 'bg-red-50 text-red-900 hover:bg-red-100 border border-red-200'
                       }`}
                     >
                       <span>With Balance</span>
-                      <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
-                        balanceStatusFilter === 'with_balance' ? 'bg-red-700 text-white' : 'bg-red-200 text-red-800'
+                      <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${
+                        balanceStatusFilter === 'with_balance' ? 'bg-red-800 text-white' : 'bg-red-200 text-red-900'
                       }`}>
                         {filterCounts.withBalance}
                       </span>
@@ -895,15 +895,15 @@ export default function UtangReportsPage() {
                       <button
                         type="button"
                         onClick={() => setBalanceStatusFilter('zero_balance')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs md:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
                           balanceStatusFilter === 'zero_balance'
-                            ? 'bg-emerald-600 text-white shadow-xs'
-                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                            ? 'bg-emerald-700 text-white shadow-xs'
+                            : 'bg-emerald-50 text-emerald-900 hover:bg-emerald-100 border border-emerald-200'
                         }`}
                       >
                         <span>Fully Paid (₱0)</span>
-                        <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
-                          balanceStatusFilter === 'zero_balance' ? 'bg-emerald-700 text-white' : 'bg-emerald-200 text-emerald-800'
+                        <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${
+                          balanceStatusFilter === 'zero_balance' ? 'bg-emerald-800 text-white' : 'bg-emerald-200 text-emerald-900'
                         }`}>
                           {filterCounts.zeroBalance}
                         </span>
@@ -912,10 +912,10 @@ export default function UtangReportsPage() {
                       <button
                         type="button"
                         onClick={() => setBalanceStatusFilter('all_directory')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs md:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
                           balanceStatusFilter === 'all_directory'
-                            ? 'bg-gray-800 text-white shadow-xs'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            ? 'bg-gray-900 text-white shadow-xs'
+                            : 'bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-200'
                         }`}
                       >
                         <span>All Directory ({filterCounts.all})</span>
@@ -925,15 +925,15 @@ export default function UtangReportsPage() {
                     <button
                       type="button"
                       onClick={() => setBalanceStatusFilter('overdue_30d')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs md:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
                         balanceStatusFilter === 'overdue_30d'
-                          ? 'bg-purple-600 text-white shadow-xs'
-                          : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
+                          ? 'bg-purple-700 text-white shadow-xs'
+                          : 'bg-purple-50 text-purple-900 hover:bg-purple-100 border border-purple-200'
                       }`}
                     >
                       <span>&gt;30 Days Overdue</span>
-                      <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
-                        balanceStatusFilter === 'overdue_30d' ? 'bg-purple-700 text-white' : 'bg-purple-200 text-purple-800'
+                      <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${
+                        balanceStatusFilter === 'overdue_30d' ? 'bg-purple-800 text-white' : 'bg-purple-200 text-purple-900'
                       }`}>
                         {filterCounts.overdue30d}
                       </span>
@@ -941,25 +941,25 @@ export default function UtangReportsPage() {
                   </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
+                <div className="overflow-x-auto w-full">
+                  <table className="w-full text-left border-collapse min-w-[1000px]">
                     <thead>
-                      <tr className="border-b border-gray-100 bg-gray-50/75 text-[11px] font-black uppercase tracking-widest text-gray-500">
+                      <tr className="border-b-2 border-gray-200 bg-gray-100/90 text-xs md:text-sm font-black uppercase tracking-wider text-gray-800">
                         <th className="py-4 px-5">Customer Name &amp; Branch</th>
-                        <th className="py-4 px-3">Contact</th>
-                        <th className="py-4 px-4">Latest Credit Date</th>
-                        <th className="py-4 px-4">Activity &amp; Dates in Period</th>
-                        <th className="py-4 px-3 text-right">Credit (Period)</th>
-                        <th className="py-4 px-3 text-right">Paid (Period)</th>
+                        <th className="py-4 px-4">Contact</th>
+                        <th className="py-4 px-5">Latest Credit Date</th>
+                        <th className="py-4 px-5">Activity &amp; Dates in Period</th>
+                        <th className="py-4 px-4 text-right">Credit (Period)</th>
+                        <th className="py-4 px-4 text-right">Paid (Period)</th>
                         <th className="py-4 px-5 text-right">Active Balance</th>
-                        <th className="py-4 px-3 text-center">Status</th>
+                        <th className="py-4 px-4 text-center">Status</th>
                         <th className="py-4 px-5 text-center print:hidden">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50 text-xs">
+                    <tbody className="divide-y divide-gray-100 text-sm">
                       {customerBreakdown.length === 0 ? (
                         <tr>
-                          <td colSpan={9} className="py-12 text-center text-gray-400 font-bold">
+                          <td colSpan={9} className="py-14 text-center text-gray-500 font-bold text-sm md:text-base">
                             <p>No customer transactions found for {
                               datePreset === 'today' ? 'Today' :
                               datePreset === 'yesterday' ? 'Yesterday' :
@@ -972,7 +972,7 @@ export default function UtangReportsPage() {
                               <button
                                 type="button"
                                 onClick={() => setBalanceStatusFilter('all_directory')}
-                                className="mt-2 text-xs text-orange-600 hover:text-orange-700 underline font-bold cursor-pointer inline-block"
+                                className="mt-3 text-sm text-orange-600 hover:text-orange-700 underline font-bold cursor-pointer inline-block"
                               >
                                 View full customer directory instead
                               </button>
@@ -993,85 +993,100 @@ export default function UtangReportsPage() {
                                 : null;
 
                           return (
-                            <tr key={item.customer.id} className="hover:bg-gray-50/80 transition-colors">
+                            <tr key={item.customer.id} className="hover:bg-orange-50/40 transition-colors">
                               {/* Customer Name & Branch */}
-                              <td className="py-3.5 px-5">
-                                <span className="font-bold text-gray-900 text-sm block">
+                              <td className="py-4 px-5 align-top">
+                                <div className="font-black text-gray-900 text-sm md:text-base leading-snug">
                                   {item.customer.name}
-                                </span>
-                                <span className="text-[10px] text-gray-400">
-                                  Branch: {branchMap.get(item.customer.branchId) || 'Main'}
-                                </span>
+                                </div>
+                                <div className="text-xs text-gray-600 font-bold mt-1 inline-flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md border border-gray-200">
+                                  <span>Branch:</span>
+                                  <span className="text-gray-900">{branchMap.get(item.customer.branchId) || 'Main'}</span>
+                                </div>
                               </td>
 
                               {/* Contact Number */}
-                              <td className="py-3.5 px-3 font-semibold text-gray-600 whitespace-nowrap">
-                                {item.customer.contact || <span className="text-gray-400 text-[11px]">—</span>}
+                              <td className="py-4 px-4 align-top font-bold text-gray-800 text-sm whitespace-nowrap">
+                                {item.customer.contact ? (
+                                  <span>{item.customer.contact}</span>
+                                ) : (
+                                  <span className="text-gray-400 font-normal">—</span>
+                                )}
                               </td>
 
                               {/* Latest Credit Date */}
-                              <td className="py-3.5 px-4 min-w-[200px]">
+                              <td className="py-4 px-5 align-top min-w-[210px]">
                                 {item.latestCreditDate ? (
-                                  <div className="space-y-0.5">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="font-bold text-gray-900 text-xs">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-black text-gray-900 text-sm">
                                         {format(item.latestCreditDate, 'MMM d, yyyy')}
                                       </span>
-                                      <span className="text-[10px] text-gray-400">
+                                      <span className="text-xs text-gray-600 font-bold">
                                         {format(item.latestCreditDate, 'h:mm a')}
                                       </span>
                                       {daysAgoText && (
-                                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                        <span className={`px-2 py-0.5 rounded-md text-xs font-black ${
                                           item.daysSinceLastCredit !== null && item.daysSinceLastCredit <= 3
-                                            ? 'bg-amber-100 text-amber-800'
+                                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
                                             : item.daysSinceLastCredit !== null && item.daysSinceLastCredit > 30
-                                              ? 'bg-red-100 text-red-800'
-                                              : 'bg-gray-100 text-gray-600'
+                                              ? 'bg-red-100 text-red-900 border border-red-300'
+                                              : 'bg-gray-100 text-gray-800 border border-gray-300'
                                         }`}>
                                           {daysAgoText}
                                         </span>
                                       )}
                                     </div>
                                     {item.latestCreditEntry && (
-                                      <div className="text-[10px] text-gray-500 truncate max-w-[220px]" title={item.latestCreditEntry.description || item.latestCreditEntry.referenceNumber}>
-                                        Amount: <span className="font-bold text-red-600">₱{item.latestCreditEntry.amount.toFixed(2)}</span>
+                                      <div className="text-xs text-gray-800 font-medium">
+                                        <span>Amount: </span>
+                                        <span className="font-black text-red-700">₱{item.latestCreditEntry.amount.toFixed(2)}</span>
                                         {item.latestCreditEntry.referenceNumber && (
-                                          <span className="text-gray-400"> • Ref: {item.latestCreditEntry.referenceNumber}</span>
+                                          <span className="text-gray-700 font-bold ml-1.5">
+                                            • Ref: {item.latestCreditEntry.referenceNumber}
+                                          </span>
+                                        )}
+                                        {item.latestCreditEntry.description && (
+                                          <div className="text-xs text-gray-600 italic mt-0.5">
+                                            {item.latestCreditEntry.description}
+                                          </div>
                                         )}
                                       </div>
                                     )}
                                   </div>
                                 ) : (
-                                  <span className="text-gray-400 italic text-[11px]">No credit record</span>
+                                  <span className="text-gray-500 font-medium text-xs italic">No credit record</span>
                                 )}
                               </td>
 
                               {/* Activity & Dates in Period (Credit and Payment Breakdown) */}
-                              <td className="py-3.5 px-4 min-w-[200px]">
+                              <td className="py-4 px-5 align-top min-w-[240px]">
                                 {item.periodCreditEntries.length === 0 && item.periodPaymentEntries.length === 0 ? (
-                                  <span className="text-gray-400 text-[11px] italic">No transactions in period</span>
+                                  <span className="text-gray-500 text-xs italic font-medium">No transactions in period</span>
                                 ) : (
-                                  <div className="space-y-1.5">
+                                  <div className="space-y-2">
                                     {/* Credit in Period */}
                                     {item.periodCreditEntries.length > 0 && (
-                                      <div className="space-y-0.5">
-                                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-50 text-red-700 text-[10px] font-bold">
-                                          <Receipt className="w-3 h-3" />
-                                          <span>{item.periodCreditEntries.length}x credit (₱{item.periodBorrowed.toFixed(2)})</span>
+                                      <div className="bg-red-50 border border-red-200 rounded-xl p-2.5 space-y-1.5">
+                                        <div className="flex items-center gap-1.5 text-xs md:text-sm font-black text-red-900">
+                                          <Receipt className="w-3.5 h-3.5 text-red-700 shrink-0" />
+                                          <span>{item.periodCreditEntries.length}x Credit: ₱{item.periodBorrowed.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
                                         </div>
-                                        <div className="text-[10px] text-gray-600 space-y-0.5 pl-1">
-                                          {item.periodCreditEntries.slice(0, 2).map(entry => (
-                                            <div key={entry.id} className="flex items-center gap-1">
-                                              <span className="font-semibold text-gray-700">{format(entry.timestamp, 'MMM d')}:</span>
-                                              <span className="text-red-600 font-bold">+₱{entry.amount.toFixed(2)}</span>
+                                        <div className="text-xs text-gray-900 space-y-1">
+                                          {item.periodCreditEntries.slice(0, 3).map(entry => (
+                                            <div key={entry.id} className="flex items-center gap-1.5 flex-wrap">
+                                              <span className="font-bold text-gray-800">{format(entry.timestamp, 'MMM d, yyyy')}:</span>
+                                              <span className="text-red-700 font-black">+₱{entry.amount.toFixed(2)}</span>
                                               {entry.referenceNumber && (
-                                                <span className="text-gray-400 text-[9px]">({entry.referenceNumber})</span>
+                                                <span className="text-gray-700 font-bold text-[11px] bg-white px-1.5 py-0.5 rounded border border-gray-200">
+                                                  Ref: {entry.referenceNumber}
+                                                </span>
                                               )}
                                             </div>
                                           ))}
-                                          {item.periodCreditEntries.length > 2 && (
-                                            <span className="text-[9px] font-bold text-orange-600 block">
-                                              +{item.periodCreditEntries.length - 2} more credit
+                                          {item.periodCreditEntries.length > 3 && (
+                                            <span className="text-xs font-black text-red-700 block">
+                                              +{item.periodCreditEntries.length - 3} more credit entries
                                             </span>
                                           )}
                                         </div>
@@ -1080,24 +1095,26 @@ export default function UtangReportsPage() {
 
                                     {/* Payments in Period */}
                                     {item.periodPaymentEntries.length > 0 && (
-                                      <div className="space-y-0.5">
-                                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-green-50 text-green-700 text-[10px] font-bold">
-                                          <ArrowDownLeft className="w-3 h-3" />
-                                          <span>{item.periodPaymentEntries.length}x paid (₱{item.periodPaid.toFixed(2)})</span>
+                                      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 space-y-1.5">
+                                        <div className="flex items-center gap-1.5 text-xs md:text-sm font-black text-emerald-900">
+                                          <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                                          <span>{item.periodPaymentEntries.length}x Paid: ₱{item.periodPaid.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
                                         </div>
-                                        <div className="text-[10px] text-gray-600 space-y-0.5 pl-1">
-                                          {item.periodPaymentEntries.slice(0, 2).map(entry => (
-                                            <div key={entry.id} className="flex items-center gap-1">
-                                              <span className="font-semibold text-gray-700">{format(entry.timestamp, 'MMM d')}:</span>
-                                              <span className="text-green-600 font-bold">-₱{Math.abs(entry.amount).toFixed(2)}</span>
+                                        <div className="text-xs text-gray-900 space-y-1">
+                                          {item.periodPaymentEntries.slice(0, 3).map(entry => (
+                                            <div key={entry.id} className="flex items-center gap-1.5 flex-wrap">
+                                              <span className="font-bold text-gray-800">{format(entry.timestamp, 'MMM d, yyyy')}:</span>
+                                              <span className="text-emerald-700 font-black">-₱{Math.abs(entry.amount).toFixed(2)}</span>
                                               {entry.referenceNumber && (
-                                                <span className="text-gray-400 text-[9px]">({entry.referenceNumber})</span>
+                                                <span className="text-gray-700 font-bold text-[11px] bg-white px-1.5 py-0.5 rounded border border-gray-200">
+                                                  Ref: {entry.referenceNumber}
+                                                </span>
                                               )}
                                             </div>
                                           ))}
-                                          {item.periodPaymentEntries.length > 2 && (
-                                            <span className="text-[9px] font-bold text-green-700 block">
-                                              +{item.periodPaymentEntries.length - 2} more payment
+                                          {item.periodPaymentEntries.length > 3 && (
+                                            <span className="text-xs font-black text-emerald-700 block">
+                                              +{item.periodPaymentEntries.length - 3} more payments
                                             </span>
                                           )}
                                         </div>
@@ -1108,60 +1125,64 @@ export default function UtangReportsPage() {
                               </td>
 
                               {/* Period Credit */}
-                              <td className="py-3.5 px-3 text-right font-bold text-red-600 whitespace-nowrap">
-                                ₱{item.periodBorrowed.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                              <td className="py-4 px-4 align-top text-right whitespace-nowrap">
+                                <span className="text-sm md:text-base font-black text-red-700 tabular-nums">
+                                  ₱{item.periodBorrowed.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                                </span>
                               </td>
 
                               {/* Period Paid */}
-                              <td className="py-3.5 px-3 text-right font-bold text-green-600 whitespace-nowrap">
-                                ₱{item.periodPaid.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                              <td className="py-4 px-4 align-top text-right whitespace-nowrap">
+                                <span className="text-sm md:text-base font-black text-emerald-700 tabular-nums">
+                                  ₱{item.periodPaid.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                                </span>
                               </td>
 
                               {/* Active Balance */}
-                              <td className="py-3.5 px-5 text-right whitespace-nowrap">
-                                <span className={`font-black text-sm ${hasUtang ? 'text-red-600' : 'text-green-600'}`}>
+                              <td className="py-4 px-5 align-top text-right whitespace-nowrap">
+                                <span className={`text-base md:text-lg font-black tabular-nums ${hasUtang ? 'text-red-700' : 'text-emerald-700'}`}>
                                   ₱{item.currentBalance.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                                 </span>
                               </td>
 
                               {/* Status Badge */}
-                              <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                              <td className="py-4 px-4 align-top text-center whitespace-nowrap">
                                 <span
-                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs md:text-sm font-black uppercase tracking-wider border shadow-xs ${
                                     hasUtang
-                                      ? 'bg-red-50 text-red-700 border border-red-100'
-                                      : 'bg-green-50 text-green-700 border border-green-100'
+                                      ? 'bg-red-100 text-red-900 border-red-300'
+                                      : 'bg-emerald-100 text-emerald-900 border-emerald-300'
                                   }`}
                                 >
                                   {hasUtang ? (
                                     <>
-                                      <AlertCircle className="w-3 h-3" /> Has Credit
+                                      <AlertCircle className="w-4 h-4 text-red-700" /> Has Credit
                                     </>
                                   ) : (
                                     <>
-                                      <CheckCircle2 className="w-3 h-3" /> Fully Paid
+                                      <CheckCircle2 className="w-4 h-4 text-emerald-700" /> Fully Paid
                                     </>
                                   )}
                                 </span>
                               </td>
 
                               {/* Actions */}
-                              <td className="py-3.5 px-5 text-center print:hidden whitespace-nowrap">
-                                <div className="flex items-center justify-center gap-1.5">
+                              <td className="py-4 px-5 align-top text-center print:hidden whitespace-nowrap">
+                                <div className="flex items-center justify-center gap-2">
                                   <button
                                     onClick={() => setHistoryCustomer(item.customer)}
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-xl text-xs md:text-sm font-bold transition-colors cursor-pointer shadow-xs"
                                     title="View customer ledger history and receipts"
                                   >
-                                    <History className="w-3.5 h-3.5" />
+                                    <History className="w-4 h-4 text-blue-700" />
                                     <span>Ledger</span>
                                   </button>
                                   <button
                                     onClick={() => setCustomerToDelete(item.customer)}
-                                    className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors cursor-pointer"
+                                    className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors cursor-pointer"
                                     title="Delete customer account"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Trash2 className="w-4 h-4" />
                                   </button>
                                 </div>
                               </td>
