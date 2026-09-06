@@ -61,8 +61,8 @@ function EWalletHistoryContent() {
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       <Header />
       
-      <div className="flex-1 p-4 md:p-8 overflow-y-auto">
-        <div className="max-w-6xl mx-auto">
+      <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
+        <div className="w-full">
           <div className="flex flex-col gap-8 mb-8">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">

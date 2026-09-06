@@ -372,8 +372,8 @@ export default function POSPage() {
         
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
           {/* Product Selection Area */}
-          <div className="flex-1 p-4 md:p-8 overflow-y-auto">
-            <div className="max-w-6xl mx-auto">
+          <div className="flex-1 p-3 sm:p-5 md:p-8 overflow-y-auto">
+            <div className="w-full">
               <div className="flex flex-col gap-6 mb-8">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
@@ -508,7 +508,7 @@ export default function POSPage() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-6 ${totalPages <= 1 ? 'pb-24 lg:pb-0' : ''}`}>
+                  <div className={`grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6 ${totalPages <= 1 ? 'pb-24 lg:pb-0' : ''}`}>
                     {paginatedProducts.map((product) => (
                       <ProductCard 
                         key={product.id} 
