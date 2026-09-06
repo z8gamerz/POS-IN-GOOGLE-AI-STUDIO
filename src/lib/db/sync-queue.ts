@@ -157,7 +157,7 @@ export async function queueAction(
         a.payload.id === key || 
         a.payload.key === key ||
         (store === STORES.CREDIT_LOG && payload.transactionId && a.payload.transactionId === payload.transactionId) ||
-        (store === STORES.CREDIT_LOG && payload.referenceNumber && a.payload.referenceNumber && String(a.payload.referenceNumber).trim().toLowerCase() === String(payload.referenceNumber).trim().toLowerCase())
+        (store === STORES.CREDIT_LOG && payload.referenceNumber && a.payload.referenceNumber && String(a.payload.referenceNumber).trim().toLowerCase() === String(payload.referenceNumber).trim().toLowerCase() && (!payload.branchId || !a.payload.branchId || a.payload.branchId === payload.branchId))
       ) &&
       (a.status === 'pending' || a.status === 'failed' || a.status === 'processing')
     );
@@ -481,13 +481,14 @@ export const syncDb = {
       const creditPayload = item as any;
       const txId = creditPayload.transactionId ? String(creditPayload.transactionId).trim() : '';
       const refNum = creditPayload.referenceNumber ? String(creditPayload.referenceNumber).trim().toLowerCase() : '';
+      const branchId = creditPayload.branchId ? String(creditPayload.branchId) : '';
 
       if (txId || refNum) {
         const existing = await dbUtil.getItems<any>(STORES.CREDIT_LOG);
         const dup = existing.find(e => 
           !e.isDeleted && (
             (txId && e.transactionId && String(e.transactionId).trim() === txId) ||
-            (refNum && e.referenceNumber && String(e.referenceNumber).trim().toLowerCase() === refNum)
+            (refNum && e.referenceNumber && String(e.referenceNumber).trim().toLowerCase() === refNum && (!branchId || !e.branchId || e.branchId === branchId))
           )
         );
         if (dup) {

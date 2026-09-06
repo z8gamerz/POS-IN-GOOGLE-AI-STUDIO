@@ -66,11 +66,11 @@ export function useCustomers(branchId?: string) {
     const remainingHistory = await customerService.getCreditHistory(customerId);
     const newTotalUtang = remainingHistory.reduce((sum, e) => sum + e.amount, 0);
 
-    const customer = customers.find(c => c.id === customerId);
-    if (customer) {
+    const targetCustomer = (await customerService.getById(customerId)) || customers.find(c => c.id === customerId);
+    if (targetCustomer) {
       const now = Date.now();
       await customerService.update({
-        ...customer,
+        ...targetCustomer,
         totalUtang: Math.max(0, newTotalUtang),
         updatedAt: now,
       });
@@ -149,8 +149,9 @@ export function useCustomers(branchId?: string) {
     const remainingHistory = await customerService.getCreditHistory(customerId);
     const newTotalUtang = remainingHistory.reduce((sum, e) => sum + e.amount, 0);
 
+    const freshCustomer = (await customerService.getById(customerId)) || customer;
     const updatedCustomer = {
-      ...customer,
+      ...freshCustomer,
       totalUtang: Math.max(0, newTotalUtang),
       updatedAt: now,
     };

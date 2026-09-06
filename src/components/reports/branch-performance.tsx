@@ -68,7 +68,7 @@ export function BranchPerformance({ stats, branches }: BranchPerformanceProps) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-gray-500 font-medium text-sm">
                     <CreditCard className="w-4 h-4" />
-                    <span>Utang</span>
+                    <span>Credit</span>
                   </div>
                   <span className="font-black text-red-600">₱{stat.utang.toLocaleString()}</span>
                 </div>

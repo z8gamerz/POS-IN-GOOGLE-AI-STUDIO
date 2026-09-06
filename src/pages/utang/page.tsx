@@ -113,7 +113,7 @@ export default function UtangPage() {
               </Link>
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Customer Credit Management</h2>
-                <p className="text-gray-500 font-medium">Track customer credit accounts, charge utang, and log payments.</p>
+                <p className="text-gray-500 font-medium">Track customer credit accounts, issue credit, and log payments.</p>
               </div>
             </div>
   

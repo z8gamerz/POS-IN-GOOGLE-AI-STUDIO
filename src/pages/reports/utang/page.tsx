@@ -29,10 +29,15 @@ import {
   RefreshCw,
   Trash2,
   AlertTriangle,
+  Clock,
+  ArrowUpDown,
+  SlidersHorizontal,
+  CalendarDays,
+  Check,
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
-import { format, startOfDay, endOfDay, isWithinInterval, subDays, startOfMonth } from 'date-fns';
+import { format, startOfDay, endOfDay, isWithinInterval, subDays, startOfMonth, differenceInDays } from 'date-fns';
 import { downloadCSV } from '@/lib/utils';
 import Papa from 'papaparse';
 
@@ -59,7 +64,10 @@ export default function UtangReportsPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('all');
   const [startDate, setStartDate] = useState('2020-01-01');
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [datePreset, setDatePreset] = useState<string>('all');
+  const [datePreset, setDatePreset] = useState<'today' | 'yesterday' | 'week' | 'month' | 'all' | 'custom'>('all');
+
+  // Dynamic Customer Balance Filters
+  const [balanceStatusFilter, setBalanceStatusFilter] = useState<'all' | 'period_activity' | 'paid_in_period' | 'borrowed_in_period' | 'with_balance' | 'zero_balance' | 'overdue_30d' | 'all_directory'>('all');
 
   // Customer history modal
   const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
@@ -115,8 +123,9 @@ export default function UtangReportsPage() {
   }, [branches]);
 
   // Date Presets Handler
-  const handleDatePreset = (preset: 'today' | 'yesterday' | 'week' | 'month' | 'all') => {
+  const handleDatePreset = (preset: 'today' | 'yesterday' | 'week' | 'month' | 'all' | 'custom') => {
     setDatePreset(preset);
+    setBalanceStatusFilter('all');
     const today = new Date();
     if (preset === 'today') {
       const d = format(today, 'yyyy-MM-dd');
@@ -158,7 +167,7 @@ export default function UtangReportsPage() {
       }
 
       // 3. Date filter
-      if (startDate && endDate) {
+      if (datePreset !== 'all' && startDate && endDate) {
         const entryDate = new Date(entry.timestamp);
         const start = startOfDay(new Date(startDate));
         const end = endOfDay(new Date(endDate));
@@ -179,7 +188,7 @@ export default function UtangReportsPage() {
 
       return true;
     }).sort((a, b) => b.timestamp - a.timestamp);
-  }, [allEntries, selectedBranchId, selectedCustomerId, startDate, endDate, searchQuery, customerMap]);
+  }, [allEntries, selectedBranchId, selectedCustomerId, startDate, endDate, searchQuery, customerMap, datePreset]);
 
   // Summary Metrics Calculation
   const metrics = useMemo(() => {
@@ -221,10 +230,13 @@ export default function UtangReportsPage() {
     };
   }, [filteredEntries, customers]);
 
-  // Customer Summary Breakdown List
-  const customerBreakdown = useMemo(() => {
+  // Customer Summary Breakdown Base List (with full credit dates metadata)
+  const allCustomerBreakdown = useMemo(() => {
     return customers
       .filter(c => {
+        if (c.isDeleted) return false;
+        const cName = c.name?.trim() || '';
+        if (!cName || cName.toLowerCase() === 'unknown' || cName.toLowerCase() === 'unknown customer') return false;
         if (selectedBranchId !== 'all' && c.branchId !== selectedBranchId) return false;
         if (selectedCustomerId !== 'all' && c.id !== selectedCustomerId) return false;
         if (searchQuery.trim()) {
@@ -234,10 +246,21 @@ export default function UtangReportsPage() {
         return true;
       })
       .map(cust => {
-        const custEntries = allEntries.filter(e => e.customerId === cust.id);
+        const custEntries = allEntries.filter(e => e.customerId === cust.id && !e.isDeleted);
         
+        // All credit (utang) transactions, sorted newest first
+        const creditEntries = custEntries
+          .filter(e => e.type === 'credit')
+          .sort((a, b) => b.timestamp - a.timestamp);
+
+        // All payment transactions, sorted newest first
+        const paymentEntries = custEntries
+          .filter(e => e.type === 'payment')
+          .sort((a, b) => b.timestamp - a.timestamp);
+
         // In selected period
-        const periodEntries = custEntries.filter(e => {
+        const isAllTime = datePreset === 'all';
+        const periodCreditEntries = isAllTime ? creditEntries : creditEntries.filter(e => {
           if (!startDate || !endDate) return true;
           const entryDate = new Date(e.timestamp);
           return isWithinInterval(entryDate, {
@@ -246,21 +269,31 @@ export default function UtangReportsPage() {
           });
         });
 
-        const periodBorrowed = periodEntries
-          .filter(e => e.type === 'credit')
-          .reduce((sum, e) => sum + e.amount, 0);
+        const periodPaymentEntries = isAllTime ? paymentEntries : paymentEntries.filter(e => {
+          if (!startDate || !endDate) return true;
+          const entryDate = new Date(e.timestamp);
+          return isWithinInterval(entryDate, {
+            start: startOfDay(new Date(startDate)),
+            end: endOfDay(new Date(endDate)),
+          });
+        });
 
-        const periodPaid = periodEntries
-          .filter(e => e.type === 'payment')
-          .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+        const periodBorrowed = periodCreditEntries.reduce((sum, e) => sum + e.amount, 0);
+        const periodPaid = periodPaymentEntries.reduce((sum, e) => sum + Math.abs(e.amount), 0);
 
-        const allBorrowed = custEntries
-          .filter(e => e.type === 'credit')
-          .reduce((sum, e) => sum + e.amount, 0);
+        const allBorrowed = creditEntries.reduce((sum, e) => sum + e.amount, 0);
+        const allPaid = paymentEntries.reduce((sum, e) => sum + Math.abs(e.amount), 0);
 
-        const allPaid = custEntries
-          .filter(e => e.type === 'payment')
-          .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+        const latestCreditEntry = creditEntries.length > 0 ? creditEntries[0] : null;
+        const latestCreditDate = latestCreditEntry ? latestCreditEntry.timestamp : null;
+        const firstCreditDate = creditEntries.length > 0 ? creditEntries[creditEntries.length - 1].timestamp : null;
+
+        const latestPaymentEntry = paymentEntries.length > 0 ? paymentEntries[0] : null;
+        const latestPaymentDate = latestPaymentEntry ? latestPaymentEntry.timestamp : null;
+
+        const daysSinceLastCredit = latestCreditDate 
+          ? differenceInDays(new Date(), new Date(latestCreditDate))
+          : null;
 
         const lastActivity = custEntries.length > 0 ? custEntries[0].timestamp : cust.createdAt;
 
@@ -272,39 +305,131 @@ export default function UtangReportsPage() {
           allPaid,
           currentBalance: cust.totalUtang,
           lastActivity,
+          creditEntries,
+          paymentEntries,
+          periodCreditEntries,
+          periodPaymentEntries,
+          latestCreditEntry,
+          latestCreditDate,
+          firstCreditDate,
+          latestPaymentDate,
+          daysSinceLastCredit,
         };
-      })
-      .sort((a, b) => b.currentBalance - a.currentBalance);
-  }, [customers, allEntries, selectedBranchId, selectedCustomerId, searchQuery, startDate, endDate]);
+      });
+  }, [customers, allEntries, selectedBranchId, selectedCustomerId, searchQuery, startDate, endDate, datePreset]);
 
-  // Export to CSV (Customer Balances Summary)
+  // Dynamic status counters for filter badges
+  const filterCounts = useMemo(() => {
+    let withBalance = 0;
+    let periodActivity = 0;
+    let borrowedInPeriod = 0;
+    let paidInPeriod = 0;
+    let zeroBalance = 0;
+    let overdue30d = 0;
+
+    allCustomerBreakdown.forEach(item => {
+      if (item.currentBalance > 0) withBalance += 1;
+      if (item.periodBorrowed > 0 || item.periodPaid > 0) periodActivity += 1;
+      if (item.periodBorrowed > 0) borrowedInPeriod += 1;
+      if (item.periodPaid > 0) paidInPeriod += 1;
+      if (item.currentBalance <= 0) zeroBalance += 1;
+      if (item.currentBalance > 0 && (item.daysSinceLastCredit === null || item.daysSinceLastCredit >= 30)) {
+        overdue30d += 1;
+      }
+    });
+
+    return {
+      all: allCustomerBreakdown.length,
+      periodActivity,
+      withBalance,
+      borrowedInPeriod,
+      paidInPeriod,
+      zeroBalance,
+      overdue30d,
+    };
+  }, [allCustomerBreakdown]);
+
+  // Filtered & Sorted Customer Breakdown for Display & Export (Driven by datePreset)
+  const customerBreakdown = useMemo(() => {
+    let list = [...allCustomerBreakdown];
+
+    // Apply Status Filter
+    if (balanceStatusFilter === 'all') {
+      if (datePreset !== 'all') {
+        // Automatically fetch and show customers who had activity (borrowed OR paid) in that period
+        list = list.filter(item => item.periodBorrowed > 0 || item.periodPaid > 0);
+      }
+    } else if (balanceStatusFilter === 'period_activity') {
+      list = list.filter(item => item.periodBorrowed > 0 || item.periodPaid > 0);
+    } else if (balanceStatusFilter === 'paid_in_period') {
+      list = list.filter(item => item.periodPaid > 0);
+    } else if (balanceStatusFilter === 'borrowed_in_period') {
+      list = list.filter(item => item.periodBorrowed > 0);
+    } else if (balanceStatusFilter === 'with_balance') {
+      list = list.filter(item => item.currentBalance > 0);
+    } else if (balanceStatusFilter === 'zero_balance') {
+      list = list.filter(item => item.currentBalance <= 0);
+    } else if (balanceStatusFilter === 'overdue_30d') {
+      list = list.filter(item => item.currentBalance > 0 && (item.daysSinceLastCredit === null || item.daysSinceLastCredit >= 30));
+    }
+    // 'all_directory' leaves the entire customer list unfiltered
+
+    // Automatic default sorting:
+    // If a specific period is selected, prioritize customers with period transactions first, then active balance
+    // If All Time, prioritize highest active balance
+    list.sort((a, b) => {
+      if (datePreset !== 'all') {
+        const aPeriodActivity = a.periodBorrowed + a.periodPaid;
+        const bPeriodActivity = b.periodBorrowed + b.periodPaid;
+        if (bPeriodActivity !== aPeriodActivity) {
+          return bPeriodActivity - aPeriodActivity;
+        }
+        return b.currentBalance - a.currentBalance;
+      }
+      return b.currentBalance - a.currentBalance;
+    });
+
+    return list;
+  }, [allCustomerBreakdown, balanceStatusFilter, datePreset]);
+
+  // Export to CSV (Customer Balances Summary with Borrowing & Payment Dates)
   const handleExportCSV = () => {
-    const listToExport = customerBreakdown.length > 0
-      ? customerBreakdown
-      : customers.map(cust => ({
-          customer: cust,
-          periodBorrowed: 0,
-          periodPaid: 0,
-          allBorrowed: 0,
-          allPaid: 0,
-          currentBalance: cust.totalUtang,
-          lastActivity: cust.createdAt,
-        }));
+    const listToExport = customerBreakdown;
 
-    const data = listToExport.map(item => ({
-      'Customer Name': item.customer.name,
-      'Contact Number': item.customer.contact || 'N/A',
-      'Branch': branchMap.get(item.customer.branchId) || 'Main',
-      'Current Outstanding Balance (PHP)': Number(item.currentBalance || 0).toFixed(2),
-      'Period Credit Issued (PHP)': Number(item.periodBorrowed || 0).toFixed(2),
-      'Period Payments Made (PHP)': Number(item.periodPaid || 0).toFixed(2),
-      'Total Lifetime Credit (PHP)': Number(item.allBorrowed || 0).toFixed(2),
-      'Total Lifetime Payments (PHP)': Number(item.allPaid || 0).toFixed(2),
-      'Status': item.currentBalance > 0 ? 'HAS OUTSTANDING BALANCE' : 'FULLY PAID',
-      'Last Transaction Date': format(item.lastActivity || Date.now(), 'yyyy-MM-dd HH:mm'),
-    }));
+    const data = listToExport.map(item => {
+      // Compile period credit dates
+      const periodCreditDatesStr = item.periodCreditEntries.length > 0
+        ? item.periodCreditEntries.map(e => `${format(e.timestamp, 'yyyy-MM-dd HH:mm')}: PHP ${e.amount.toFixed(2)}${e.referenceNumber ? ` (${e.referenceNumber})` : ''}`).join(' | ')
+        : 'No credit in period';
 
-    downloadCSV(data, `customer-balances-summary-${startDate}-to-${endDate}.csv`);
+      // Compile period payment dates
+      const periodPaymentDatesStr = item.periodPaymentEntries.length > 0
+        ? item.periodPaymentEntries.map(e => `${format(e.timestamp, 'yyyy-MM-dd HH:mm')}: PHP ${Math.abs(e.amount).toFixed(2)}${e.referenceNumber ? ` (${e.referenceNumber})` : ''}`).join(' | ')
+        : 'No payments in period';
+
+      return {
+        'Customer Name': item.customer.name,
+        'Contact Number': item.customer.contact || 'N/A',
+        'Branch': branchMap.get(item.customer.branchId) || 'Main',
+        'Current Outstanding Balance (PHP)': Number(item.currentBalance || 0).toFixed(2),
+        'Latest Credit Date': item.latestCreditDate ? format(item.latestCreditDate, 'yyyy-MM-dd') : 'None',
+        'Latest Credit Time': item.latestCreditDate ? format(item.latestCreditDate, 'HH:mm:ss') : 'N/A',
+        'Latest Credit Amount (PHP)': item.latestCreditEntry ? item.latestCreditEntry.amount.toFixed(2) : '0.00',
+        'Latest Reference / Ticket ID': item.latestCreditEntry?.referenceNumber || item.latestCreditEntry?.transactionId || 'N/A',
+        'Days Since Last Credit': item.daysSinceLastCredit !== null ? `${item.daysSinceLastCredit} days` : 'N/A',
+        'Credit Dates in Selected Period': periodCreditDatesStr,
+        'Payment Dates in Selected Period': periodPaymentDatesStr,
+        'Period Credit Issued (PHP)': Number(item.periodBorrowed || 0).toFixed(2),
+        'Period Payments Made (PHP)': Number(item.periodPaid || 0).toFixed(2),
+        'First Credit Date': item.firstCreditDate ? format(item.firstCreditDate, 'yyyy-MM-dd') : 'None',
+        'Total Lifetime Credit (PHP)': Number(item.allBorrowed || 0).toFixed(2),
+        'Total Lifetime Payments (PHP)': Number(item.allPaid || 0).toFixed(2),
+        'Status': item.currentBalance > 0 ? 'HAS OUTSTANDING BALANCE' : 'FULLY PAID',
+        'Last Overall Activity Date': format(item.lastActivity || Date.now(), 'yyyy-MM-dd HH:mm'),
+      };
+    });
+
+    downloadCSV(data, `customer-balances-summary-${datePreset}-${startDate}-to-${endDate}.csv`);
   };
 
   // Export Detailed Transactions Ledger (CSV)
@@ -329,7 +454,7 @@ export default function UtangReportsPage() {
         'Date & Time': format(entry.timestamp, 'yyyy-MM-dd HH:mm:ss'),
         'Customer Name': cust?.name || 'Unknown Customer',
         'Customer Contact': cust?.contact || 'N/A',
-        'Type': entry.type === 'credit' ? 'Utang (Credit)' : 'Bayad (Payment)',
+        'Type': entry.type === 'credit' ? 'Credit' : 'Payment',
         'Reference / Ticket ID': entry.referenceNumber || entry.transactionId || 'N/A',
         'Amount (PHP)': Math.abs(entry.amount).toFixed(2),
         'Discount (PHP)': Number(entry.discount || 0).toFixed(2),
@@ -363,7 +488,36 @@ export default function UtangReportsPage() {
             <div className="text-right">
               <h2 className="text-lg font-black uppercase text-orange-700 tracking-wider">Customer Credit &amp; Balances Report</h2>
               <p className="text-xs text-gray-700 font-bold mt-1">Period: {startDate} to {endDate}</p>
+              <p className="text-[11px] text-gray-600 font-semibold">
+                Filter: {
+                  balanceStatusFilter === 'all' ? 'All Customers' :
+                  balanceStatusFilter === 'with_balance' ? 'Active Balance Only' :
+                  balanceStatusFilter === 'borrowed_in_period' ? 'Borrowed in Selected Period' :
+                  balanceStatusFilter === 'paid_in_period' ? 'Paid in Selected Period' :
+                  balanceStatusFilter === 'zero_balance' ? 'Fully Paid (Zero Balance)' : 'Overdue (>30 Days)'
+                } | Branch: {selectedBranchId === 'all' ? 'All Branches' : (branchMap.get(selectedBranchId) || selectedBranchId)}
+              </p>
               <p className="text-[10px] text-gray-500">Printed on: {format(new Date(), 'yyyy-MM-dd HH:mm:ss')}</p>
+            </div>
+          </div>
+
+          {/* Quick Print Summary KPI Strip */}
+          <div className="grid grid-cols-4 gap-3 mt-6 pt-4 border-t border-gray-300 text-center">
+            <div className="p-2 border border-gray-200 rounded-lg">
+              <div className="text-[9px] uppercase font-bold text-gray-500">Total Customers in Report</div>
+              <div className="text-sm font-black text-gray-900">{customerBreakdown.length}</div>
+            </div>
+            <div className="p-2 border border-gray-200 rounded-lg">
+              <div className="text-[9px] uppercase font-bold text-gray-500">Active Outstanding Balance</div>
+              <div className="text-sm font-black text-red-700">₱{customerBreakdown.reduce((s, c) => s + c.currentBalance, 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
+            </div>
+            <div className="p-2 border border-gray-200 rounded-lg">
+              <div className="text-[9px] uppercase font-bold text-gray-500">New Credit in Period</div>
+              <div className="text-sm font-black text-orange-700">₱{customerBreakdown.reduce((s, c) => s + c.periodBorrowed, 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
+            </div>
+            <div className="p-2 border border-gray-200 rounded-lg">
+              <div className="text-[9px] uppercase font-bold text-gray-500">Collections / Payments in Period</div>
+              <div className="text-sm font-black text-green-700">₱{customerBreakdown.reduce((s, c) => s + c.periodPaid, 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
             </div>
           </div>
         </div>
@@ -376,7 +530,7 @@ export default function UtangReportsPage() {
                 <Link
                   href="/utang"
                   className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all text-gray-500 hover:text-gray-900 border border-gray-100 print:hidden cursor-pointer"
-                  title="Back to Utang System"
+                  title="Back to Credit Management"
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </Link>
@@ -422,7 +576,7 @@ export default function UtangReportsPage() {
                 <button
                   onClick={handleExportLedgerCSV}
                   className="px-4 py-3 bg-gray-900 hover:bg-black text-white rounded-2xl shadow-md transition-all text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer"
-                  title="Export Detailed Utang and Payment Transactions CSV"
+                  title="Export Detailed Credit and Payment Transactions CSV"
                 >
                   <Download className="w-4 h-4 text-orange-400" />
                   Ledger CSV
@@ -433,27 +587,52 @@ export default function UtangReportsPage() {
             {/* Filter Controls (Date Pickers, Presets, Search, Branch, Customer) */}
             <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4 print:hidden">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                {/* Date Presets */}
-                <div className="flex flex-wrap items-center gap-1.5 bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
-                  {[
-                    { id: 'today', label: 'Today' },
-                    { id: 'yesterday', label: 'Yesterday' },
-                    { id: 'week', label: 'Last 7 Days' },
-                    { id: 'month', label: 'This Month' },
-                    { id: 'all', label: 'All Time' },
-                  ].map(p => (
-                    <button
-                      key={p.id}
-                      onClick={() => handleDatePreset(p.id as any)}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        datePreset === p.id
-                          ? 'bg-orange-600 text-white shadow-sm'
-                          : 'text-gray-600 hover:bg-white'
-                      }`}
+                {/* Date Presets Dropdown & Quick Buttons */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Dedicated Period Dropdown */}
+                  <div className="flex items-center gap-2 bg-orange-50/80 border border-orange-200 px-3.5 py-2 rounded-2xl shadow-xs">
+                    <Calendar className="w-4 h-4 text-orange-600 shrink-0" />
+                    <label htmlFor="top-period-dropdown" className="text-xs font-black uppercase tracking-wider text-orange-950 shrink-0">
+                      Period:
+                    </label>
+                    <select
+                      id="top-period-dropdown"
+                      value={datePreset}
+                      onChange={e => handleDatePreset(e.target.value as any)}
+                      className="bg-transparent text-xs font-black text-orange-950 outline-none cursor-pointer pr-1"
                     >
-                      {p.label}
-                    </button>
-                  ))}
+                      <option value="today">Today</option>
+                      <option value="yesterday">Yesterday</option>
+                      <option value="week">Last 7 Days</option>
+                      <option value="month">This Month</option>
+                      <option value="all">All Time</option>
+                      <option value="custom">Custom Date Range</option>
+                    </select>
+                  </div>
+
+                  {/* Quick Preset Buttons for 1-click convenience */}
+                  <div className="flex flex-wrap items-center gap-1.5 bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
+                    {[
+                      { id: 'today', label: 'Today' },
+                      { id: 'yesterday', label: 'Yesterday' },
+                      { id: 'week', label: 'Last 7 Days' },
+                      { id: 'month', label: 'This Month' },
+                      { id: 'all', label: 'All Time' },
+                    ].map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleDatePreset(p.id as any)}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          datePreset === p.id
+                            ? 'bg-orange-600 text-white shadow-xs'
+                            : 'text-gray-600 hover:bg-white'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Date Inputs */}
@@ -533,7 +712,7 @@ export default function UtangReportsPage() {
 
             {/* Summary KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Total Bayad Received */}
+              {/* Total Collections (Payments) */}
               <div className="bg-white p-5 rounded-3xl border border-green-100 shadow-xs flex items-center justify-between">
                 <div>
                   <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1">
@@ -551,11 +730,11 @@ export default function UtangReportsPage() {
                 </div>
               </div>
 
-              {/* Total New Utang Given */}
+              {/* Total New Credit Issued */}
               <div className="bg-white p-5 rounded-3xl border border-red-100 shadow-xs flex items-center justify-between">
                 <div>
                   <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <ArrowUpRight className="w-3.5 h-3.5 text-red-500" /> New Credit (Utang Issued)
+                    <ArrowUpRight className="w-3.5 h-3.5 text-red-500" /> New Credit Issued
                   </p>
                   <p className="text-2xl font-black text-red-600">
                     ₱{metrics.totalCreditPeriod.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
@@ -614,47 +793,210 @@ export default function UtangReportsPage() {
               </div>
             ) : (
               <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <h2 className="text-lg font-black text-gray-900 flex items-center gap-2">
-                      <Users className="w-5 h-5 text-orange-600" />
-                      Customer Balances Summary
-                    </h2>
-                    <p className="text-xs text-gray-500 font-medium">
-                      Overview of customer accounts, period credit issued, payments received, and active balance.
-                    </p>
+                {/* Header & Dynamic Controls */}
+                <div className="p-6 border-b border-gray-100 flex flex-col gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h2 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                        <Users className="w-5 h-5 text-orange-600" />
+                        Customer Balances Summary
+                      </h2>
+                      <p className="text-xs text-gray-500 font-medium mt-0.5">
+                        Overview of customer balances, borrowing dates, and credit transactions for the selected period.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                        {customerBreakdown.length} of {allCustomerBreakdown.length} Customers
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-xs font-bold text-gray-400">
-                    {customerBreakdown.length} Customers found
-                  </span>
+
+                  {/* Dynamic Filter Pills & Active Period Indicator (No dropdown in summary as requested) */}
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-2 border-t border-gray-100 print:hidden">
+                    {/* Status Filter Pills */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setBalanceStatusFilter('all')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          balanceStatusFilter === 'all'
+                            ? 'bg-orange-600 text-white shadow-xs'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        <span>{datePreset === 'all' ? 'All Customers' : 'All in Period'}</span>
+                        <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                          balanceStatusFilter === 'all' ? 'bg-orange-700 text-white' : 'bg-gray-200 text-gray-700'
+                        }`}>
+                          {datePreset === 'all' ? filterCounts.all : filterCounts.periodActivity}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setBalanceStatusFilter('paid_in_period')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          balanceStatusFilter === 'paid_in_period'
+                            ? 'bg-green-600 text-white shadow-xs'
+                            : 'bg-green-50 text-green-700 hover:bg-green-100'
+                        }`}
+                      >
+                        <ArrowDownLeft className="w-3.5 h-3.5" />
+                        <span>Payers ({filterCounts.paidInPeriod})</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setBalanceStatusFilter('borrowed_in_period')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          balanceStatusFilter === 'borrowed_in_period'
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                        }`}
+                      >
+                        <Receipt className="w-3.5 h-3.5" />
+                        <span>Borrowers ({filterCounts.borrowedInPeriod})</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setBalanceStatusFilter('with_balance')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          balanceStatusFilter === 'with_balance'
+                            ? 'bg-red-600 text-white shadow-xs'
+                            : 'bg-red-50 text-red-700 hover:bg-red-100'
+                        }`}
+                      >
+                        <span>With Balance</span>
+                        <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                          balanceStatusFilter === 'with_balance' ? 'bg-red-700 text-white' : 'bg-red-200 text-red-800'
+                        }`}>
+                          {filterCounts.withBalance}
+                        </span>
+                      </button>
+
+                      {datePreset === 'all' ? (
+                        <button
+                          type="button"
+                          onClick={() => setBalanceStatusFilter('zero_balance')}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                            balanceStatusFilter === 'zero_balance'
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                          }`}
+                        >
+                          <span>Fully Paid (₱0)</span>
+                          <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                            balanceStatusFilter === 'zero_balance' ? 'bg-emerald-700 text-white' : 'bg-emerald-200 text-emerald-800'
+                          }`}>
+                            {filterCounts.zeroBalance}
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setBalanceStatusFilter('all_directory')}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                            balanceStatusFilter === 'all_directory'
+                              ? 'bg-gray-800 text-white shadow-xs'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          <span>All Directory ({filterCounts.all})</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setBalanceStatusFilter('overdue_30d')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          balanceStatusFilter === 'overdue_30d'
+                            ? 'bg-purple-600 text-white shadow-xs'
+                            : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
+                        }`}
+                      >
+                        <span>&gt;30 Days Overdue</span>
+                        <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                          balanceStatusFilter === 'overdue_30d' ? 'bg-purple-700 text-white' : 'bg-purple-200 text-purple-800'
+                        }`}>
+                          {filterCounts.overdue30d}
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* Active Period Indicator Badge (Replaced dropdown) */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-600">
+                        <Calendar className="w-3.5 h-3.5 text-orange-600" />
+                        <span>Period: <strong className="text-gray-900 font-bold">{
+                          datePreset === 'today' ? 'Today' :
+                          datePreset === 'yesterday' ? 'Yesterday' :
+                          datePreset === 'week' ? 'Last 7 Days' :
+                          datePreset === 'month' ? 'This Month' :
+                          datePreset === 'all' ? 'All Time' :
+                          `${startDate} to ${endDate}`
+                        }</strong></span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-gray-100 bg-gray-50/75 text-[11px] font-black uppercase tracking-widest text-gray-500">
-                        <th className="py-4 px-6">Customer Name</th>
-                        <th className="py-4 px-4">Contact</th>
-                        <th className="py-4 px-4 text-right">Credit (Period)</th>
-                        <th className="py-4 px-4 text-right">Paid (Period)</th>
-                        <th className="py-4 px-6 text-right">Active Balance</th>
-                        <th className="py-4 px-4 text-center">Status</th>
-                        <th className="py-4 px-6 text-center print:hidden">Actions</th>
+                        <th className="py-4 px-5">Customer Name &amp; Branch</th>
+                        <th className="py-4 px-3">Contact</th>
+                        <th className="py-4 px-4">Latest Credit Date</th>
+                        <th className="py-4 px-4">Activity &amp; Dates in Period</th>
+                        <th className="py-4 px-3 text-right">Credit (Period)</th>
+                        <th className="py-4 px-3 text-right">Paid (Period)</th>
+                        <th className="py-4 px-5 text-right">Active Balance</th>
+                        <th className="py-4 px-3 text-center">Status</th>
+                        <th className="py-4 px-5 text-center print:hidden">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50 text-xs">
                       {customerBreakdown.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="py-12 text-center text-gray-400 font-bold">
-                            No customers found matching the filter.
+                          <td colSpan={9} className="py-12 text-center text-gray-400 font-bold">
+                            <p>No customer transactions found for {
+                              datePreset === 'today' ? 'Today' :
+                              datePreset === 'yesterday' ? 'Yesterday' :
+                              datePreset === 'week' ? 'the Last 7 Days' :
+                              datePreset === 'month' ? 'This Month' :
+                              datePreset === 'all' ? 'All Time' :
+                              `${startDate} to ${endDate}`
+                            }.</p>
+                            {datePreset !== 'all' && (
+                              <button
+                                type="button"
+                                onClick={() => setBalanceStatusFilter('all_directory')}
+                                className="mt-2 text-xs text-orange-600 hover:text-orange-700 underline font-bold cursor-pointer inline-block"
+                              >
+                                View full customer directory instead
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ) : (
                         customerBreakdown.map(item => {
                           const hasUtang = item.currentBalance > 0;
+                          
+                          // Format days ago text
+                          const daysAgoText = item.daysSinceLastCredit === 0
+                            ? 'Today'
+                            : item.daysSinceLastCredit === 1
+                              ? 'Yesterday'
+                              : item.daysSinceLastCredit !== null
+                                ? `${item.daysSinceLastCredit} days ago`
+                                : null;
+
                           return (
                             <tr key={item.customer.id} className="hover:bg-gray-50/80 transition-colors">
-                              <td className="py-4 px-6">
+                              {/* Customer Name & Branch */}
+                              <td className="py-3.5 px-5">
                                 <span className="font-bold text-gray-900 text-sm block">
                                   {item.customer.name}
                                 </span>
@@ -662,21 +1004,129 @@ export default function UtangReportsPage() {
                                   Branch: {branchMap.get(item.customer.branchId) || 'Main'}
                                 </span>
                               </td>
-                              <td className="py-4 px-4 font-semibold text-gray-600">
-                                {item.customer.contact || 'No Contact'}
+
+                              {/* Contact Number */}
+                              <td className="py-3.5 px-3 font-semibold text-gray-600 whitespace-nowrap">
+                                {item.customer.contact || <span className="text-gray-400 text-[11px]">—</span>}
                               </td>
-                              <td className="py-4 px-4 text-right font-bold text-red-600">
+
+                              {/* Latest Credit Date */}
+                              <td className="py-3.5 px-4 min-w-[200px]">
+                                {item.latestCreditDate ? (
+                                  <div className="space-y-0.5">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="font-bold text-gray-900 text-xs">
+                                        {format(item.latestCreditDate, 'MMM d, yyyy')}
+                                      </span>
+                                      <span className="text-[10px] text-gray-400">
+                                        {format(item.latestCreditDate, 'h:mm a')}
+                                      </span>
+                                      {daysAgoText && (
+                                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                          item.daysSinceLastCredit !== null && item.daysSinceLastCredit <= 3
+                                            ? 'bg-amber-100 text-amber-800'
+                                            : item.daysSinceLastCredit !== null && item.daysSinceLastCredit > 30
+                                              ? 'bg-red-100 text-red-800'
+                                              : 'bg-gray-100 text-gray-600'
+                                        }`}>
+                                          {daysAgoText}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {item.latestCreditEntry && (
+                                      <div className="text-[10px] text-gray-500 truncate max-w-[220px]" title={item.latestCreditEntry.description || item.latestCreditEntry.referenceNumber}>
+                                        Amount: <span className="font-bold text-red-600">₱{item.latestCreditEntry.amount.toFixed(2)}</span>
+                                        {item.latestCreditEntry.referenceNumber && (
+                                          <span className="text-gray-400"> • Ref: {item.latestCreditEntry.referenceNumber}</span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400 italic text-[11px]">No credit record</span>
+                                )}
+                              </td>
+
+                              {/* Activity & Dates in Period (Credit and Payment Breakdown) */}
+                              <td className="py-3.5 px-4 min-w-[200px]">
+                                {item.periodCreditEntries.length === 0 && item.periodPaymentEntries.length === 0 ? (
+                                  <span className="text-gray-400 text-[11px] italic">No transactions in period</span>
+                                ) : (
+                                  <div className="space-y-1.5">
+                                    {/* Credit in Period */}
+                                    {item.periodCreditEntries.length > 0 && (
+                                      <div className="space-y-0.5">
+                                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-50 text-red-700 text-[10px] font-bold">
+                                          <Receipt className="w-3 h-3" />
+                                          <span>{item.periodCreditEntries.length}x credit (₱{item.periodBorrowed.toFixed(2)})</span>
+                                        </div>
+                                        <div className="text-[10px] text-gray-600 space-y-0.5 pl-1">
+                                          {item.periodCreditEntries.slice(0, 2).map(entry => (
+                                            <div key={entry.id} className="flex items-center gap-1">
+                                              <span className="font-semibold text-gray-700">{format(entry.timestamp, 'MMM d')}:</span>
+                                              <span className="text-red-600 font-bold">+₱{entry.amount.toFixed(2)}</span>
+                                              {entry.referenceNumber && (
+                                                <span className="text-gray-400 text-[9px]">({entry.referenceNumber})</span>
+                                              )}
+                                            </div>
+                                          ))}
+                                          {item.periodCreditEntries.length > 2 && (
+                                            <span className="text-[9px] font-bold text-orange-600 block">
+                                              +{item.periodCreditEntries.length - 2} more credit
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Payments in Period */}
+                                    {item.periodPaymentEntries.length > 0 && (
+                                      <div className="space-y-0.5">
+                                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-green-50 text-green-700 text-[10px] font-bold">
+                                          <ArrowDownLeft className="w-3 h-3" />
+                                          <span>{item.periodPaymentEntries.length}x paid (₱{item.periodPaid.toFixed(2)})</span>
+                                        </div>
+                                        <div className="text-[10px] text-gray-600 space-y-0.5 pl-1">
+                                          {item.periodPaymentEntries.slice(0, 2).map(entry => (
+                                            <div key={entry.id} className="flex items-center gap-1">
+                                              <span className="font-semibold text-gray-700">{format(entry.timestamp, 'MMM d')}:</span>
+                                              <span className="text-green-600 font-bold">-₱{Math.abs(entry.amount).toFixed(2)}</span>
+                                              {entry.referenceNumber && (
+                                                <span className="text-gray-400 text-[9px]">({entry.referenceNumber})</span>
+                                              )}
+                                            </div>
+                                          ))}
+                                          {item.periodPaymentEntries.length > 2 && (
+                                            <span className="text-[9px] font-bold text-green-700 block">
+                                              +{item.periodPaymentEntries.length - 2} more payment
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* Period Credit */}
+                              <td className="py-3.5 px-3 text-right font-bold text-red-600 whitespace-nowrap">
                                 ₱{item.periodBorrowed.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                               </td>
-                              <td className="py-4 px-4 text-right font-bold text-green-600">
+
+                              {/* Period Paid */}
+                              <td className="py-3.5 px-3 text-right font-bold text-green-600 whitespace-nowrap">
                                 ₱{item.periodPaid.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                               </td>
-                              <td className="py-4 px-6 text-right">
+
+                              {/* Active Balance */}
+                              <td className="py-3.5 px-5 text-right whitespace-nowrap">
                                 <span className={`font-black text-sm ${hasUtang ? 'text-red-600' : 'text-green-600'}`}>
                                   ₱{item.currentBalance.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                                 </span>
                               </td>
-                              <td className="py-4 px-4 text-center">
+
+                              {/* Status Badge */}
+                              <td className="py-3.5 px-3 text-center whitespace-nowrap">
                                 <span
                                   className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
                                     hasUtang
@@ -695,12 +1145,14 @@ export default function UtangReportsPage() {
                                   )}
                                 </span>
                               </td>
-                              <td className="py-4 px-6 text-center print:hidden whitespace-nowrap">
+
+                              {/* Actions */}
+                              <td className="py-3.5 px-5 text-center print:hidden whitespace-nowrap">
                                 <div className="flex items-center justify-center gap-1.5">
                                   <button
                                     onClick={() => setHistoryCustomer(item.customer)}
                                     className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                                    title="View Full Ledger History & Receipts"
+                                    title="View customer ledger history and receipts"
                                   >
                                     <History className="w-3.5 h-3.5" />
                                     <span>Ledger</span>

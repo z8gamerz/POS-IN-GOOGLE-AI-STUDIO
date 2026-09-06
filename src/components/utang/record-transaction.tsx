@@ -25,7 +25,7 @@ interface RecordTransactionProps {
 
 export function RecordTransaction({ customer, type, onSave, onClose }: RecordTransactionProps) {
   const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState(type === 'payment' ? 'Payment for credit/utang' : '');
+  const [description, setDescription] = useState(type === 'payment' ? 'Payment for credit balance' : '');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [discount, setDiscount] = useState('');
   const [discountNote, setDiscountNote] = useState('');
@@ -40,7 +40,7 @@ export function RecordTransaction({ customer, type, onSave, onClose }: RecordTra
   const projectedRemainingBalance = Math.max(0, customer.totalUtang - totalDebtDeduction);
 
   const handleGenerateRef = () => {
-    const prefix = type === 'credit' ? 'UTANG' : 'PAY';
+    const prefix = type === 'credit' ? 'CREDIT' : 'PAY';
     const randomSuffix = Math.floor(100000 + Math.random() * 900000);
     setReferenceNumber(`${prefix}-${randomSuffix}`);
   };
@@ -60,7 +60,7 @@ export function RecordTransaction({ customer, type, onSave, onClose }: RecordTra
   const handlePayFull = () => {
     if (customer.totalUtang > 0) {
       setAmount(customer.totalUtang.toFixed(2));
-      setDescription('Full payment for utang');
+      setDescription('Full payment for credit balance');
     }
   };
 
@@ -148,7 +148,7 @@ export function RecordTransaction({ customer, type, onSave, onClose }: RecordTra
             <div className="p-4 bg-green-50/60 rounded-2xl border border-green-100/80 space-y-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] font-black text-green-700 uppercase tracking-wider block">Current Utang</span>
+                  <span className="text-[10px] font-black text-green-700 uppercase tracking-wider block">Current Credit Balance</span>
                   <span className="text-xl font-black text-green-900">
                     ₱{customer.totalUtang.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </span>
@@ -255,11 +255,11 @@ export function RecordTransaction({ customer, type, onSave, onClose }: RecordTra
                       <span>+ ₱{parsedDiscount.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-green-700 font-black border-t border-purple-100 pt-1">
-                      <span>Total Bawas sa Utang:</span>
+                      <span>Total Credit Deducted:</span>
                       <span>₱{totalDebtDeduction.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-gray-500">
-                      <span>Natitirang Utang:</span>
+                      <span>Remaining Credit Balance:</span>
                       <span className="font-bold">₱{projectedRemainingBalance.toFixed(2)}</span>
                     </div>
                   </div>

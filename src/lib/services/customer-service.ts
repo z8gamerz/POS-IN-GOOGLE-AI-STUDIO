@@ -126,11 +126,13 @@ class CustomerService extends BaseService<Customer> {
       const allEntries = await dbUtil.getItems<CreditEntry>(STORES.CREDIT_LOG);
       const recentDuplicate = allEntries.find(e => 
         !e.isDeleted &&
+        e.id !== (entry as any).id &&
         e.customerId === entry.customerId &&
+        (!entry.branchId || !e.branchId || e.branchId === entry.branchId) &&
         e.type === entry.type &&
         Math.abs(e.amount - entry.amount) < 0.001 &&
         e.description.trim().toLowerCase() === entry.description.trim().toLowerCase() &&
-        (now - e.timestamp) < 4000
+        Math.abs(now - (e.updatedAt || e.timestamp)) < 4000
       );
 
       if (recentDuplicate) {
@@ -139,6 +141,7 @@ class CustomerService extends BaseService<Customer> {
 
       const newEntry: CreditEntry = {
         ...entry,
+        id: (entry as any).id || crypto.randomUUID(),
         transactionId: txId,
         referenceNumber: refNum,
         updatedAt: now,

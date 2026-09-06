@@ -437,6 +437,7 @@ class IndexedDBUtility {
         const creditItem = item as any;
         const targetTxId = creditItem.transactionId ? String(creditItem.transactionId).trim() : '';
         const targetRefNum = creditItem.referenceNumber ? String(creditItem.referenceNumber).trim().toLowerCase() : '';
+        const targetBranchId = creditItem.branchId ? String(creditItem.branchId) : '';
 
         if (targetTxId || targetRefNum) {
           const allReq = store.getAll();
@@ -445,7 +446,7 @@ class IndexedDBUtility {
             const duplicate = allEntries.find(e => 
               !e.isDeleted && (
                 (targetTxId && e.transactionId && String(e.transactionId).trim() === targetTxId) ||
-                (targetRefNum && e.referenceNumber && String(e.referenceNumber).trim().toLowerCase() === targetRefNum)
+                (targetRefNum && e.referenceNumber && String(e.referenceNumber).trim().toLowerCase() === targetRefNum && (!targetBranchId || !e.branchId || e.branchId === targetBranchId))
               )
             );
 
