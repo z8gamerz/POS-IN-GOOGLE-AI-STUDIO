@@ -2,7 +2,7 @@
 
 import { useStore } from '@/lib/hooks/use-store';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { Store, Clock, UserCircle, ChevronDown, LogOut, RefreshCw, CloudLightning, Sun, Moon } from 'lucide-react';
+import { Store, Clock, UserCircle, ChevronDown, LogOut, RefreshCw, CloudLightning, Sun, Moon, Maximize, Minimize } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BranchSelector } from './branch-selector';
 import { BranchManagement } from '../branches/branch-management';
@@ -21,6 +21,29 @@ export function Header({ ticketNumber }: { ticketNumber?: string }) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
   const [hasSyncError, setHasSyncError] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+      }
+    } catch (err) {
+      console.warn('Fullscreen error:', err);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -84,6 +107,19 @@ export function Header({ ticketNumber }: { ticketNumber?: string }) {
       </motion.div>
       
       <div className="flex items-center gap-1.5 sm:gap-3">
+        {/* Full Screen Toggle Button */}
+        <button
+          onClick={toggleFullscreen}
+          className="p-2 rounded-2xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300 shadow-sm transition-all cursor-pointer flex items-center justify-center"
+          title={isFullscreen ? "Exit Full Screen" : "Full Screen Mode"}
+        >
+          {isFullscreen ? (
+            <Minimize className="w-4 h-4 text-orange-600" />
+          ) : (
+            <Maximize className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+          )}
+        </button>
+
         {/* Theme Toggle Button */}
         <button
           onClick={toggleTheme}

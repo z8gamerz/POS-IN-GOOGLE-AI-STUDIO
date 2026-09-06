@@ -96,7 +96,7 @@ function SalesJournalContent() {
       </div>
       
       <main className="flex-1 p-4 md:p-8 overflow-y-auto print:overflow-visible print:p-0">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full">
           {/* Header Section */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 print:hidden">
             <div className="flex items-center gap-4">

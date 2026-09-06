@@ -101,7 +101,7 @@ export default function UsersManagementPage() {
       <AuthGuard allowedRoles={['admin']}>
         <div className="min-h-screen bg-gray-50 font-sans">
           <Header />
-          <main className="max-w-7xl mx-auto px-4 md:px-8 py-20 text-center">
+          <main className="w-full px-4 md:px-8 py-20 text-center">
             <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
             <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Loading User Management...</p>
           </main>
@@ -115,7 +115,7 @@ export default function UsersManagementPage() {
       <div className="min-h-screen bg-gray-50 font-sans">
         <Header />
         
-        <main className="max-w-7xl mx-auto px-4 md:px-8 py-8">
+        <main className="w-full px-4 md:px-8 py-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
             <div className="flex items-center gap-6">
               <Link 

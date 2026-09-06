@@ -164,39 +164,39 @@ function HomeContent() {
     <main className="min-h-screen bg-gray-50 font-sans">
       <Header />
         
-        <div className="p-6 md:p-12 max-w-7xl mx-auto">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <AnimatePresence>
             {showSyncError && (
               <motion.div
                 initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                animate={{ opacity: 1, height: 'auto', marginBottom: 32 }}
+                animate={{ opacity: 1, height: 'auto', marginBottom: 24 }}
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                className="bg-rose-50 border-2 border-rose-100 rounded-[2.5rem] p-6 md:p-10 shadow-xl overflow-hidden relative text-left"
+                className="bg-rose-50 border-2 border-rose-100 rounded-[2rem] p-5 sm:p-8 shadow-xl overflow-hidden relative text-left"
               >
                 <button 
                   onClick={() => setShowSyncError(false)}
-                  className="absolute top-6 right-6 p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-100/50 rounded-full transition-all cursor-pointer"
+                  className="absolute top-5 right-5 p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-100/50 rounded-full transition-all cursor-pointer"
                   title="Dismiss alert"
                 >
                   <X className="w-5 h-5" />
                 </button>
 
-                <div className="flex gap-5 flex-col md:flex-row items-start">
-                  <div className="bg-rose-100 text-rose-600 p-4 rounded-3xl flex-shrink-0">
-                    <CloudLightning className="w-8 h-8 animate-bounce" />
+                <div className="flex gap-4 flex-col md:flex-row items-start">
+                  <div className="bg-rose-100 text-rose-600 p-3.5 rounded-2xl flex-shrink-0">
+                    <CloudLightning className="w-7 h-7 animate-bounce" />
                   </div>
                   <div className="flex-grow text-left">
-                    <h3 className="text-2xl font-black tracking-tight text-rose-950 mb-3 flex items-center gap-2">
+                    <h3 className="text-xl sm:text-2xl font-black tracking-tight text-rose-950 mb-2 flex items-center gap-2">
                       Firebase Database Connection Restricted
                     </h3>
-                    <p className="text-sm font-medium text-rose-800/90 leading-relaxed mb-6 max-w-3xl">
-                      Your POS system successfully connected to the Firebase Realtime Database, but received an <strong className="font-bold">Unauthorized (401)</strong> response. This happens because default security rules in new Firebase projects are set to Locked Mode. Follow these simple steps to authorize access:
+                    <p className="text-xs sm:text-sm font-medium text-rose-800/90 leading-relaxed mb-4 max-w-3xl">
+                      Your POS system successfully connected to the Firebase Realtime Database, but received an <strong className="font-bold">Unauthorized (401)</strong> response. Follow these simple steps to authorize access:
                     </p>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-2">
-                      <div className="space-y-4 text-sm text-rose-950/90 font-medium">
-                        <div className="flex gap-3">
-                          <span className="flex items-center justify-center bg-rose-200/60 text-rose-900 font-bold w-6 h-6 rounded-full text-xs shrink-0 mt-0.5">1</span>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-2">
+                      <div className="space-y-3 text-xs sm:text-sm text-rose-950/90 font-medium">
+                        <div className="flex gap-2.5">
+                          <span className="flex items-center justify-center bg-rose-200/60 text-rose-900 font-bold w-5 h-5 rounded-full text-xs shrink-0 mt-0.5">1</span>
                           <div>
                             Open your <a href="https://console.firebase.google.com/project/database-for-inventory-88e9f/database/realtime-database/rules" target="_blank" rel="noopener noreferrer" className="text-rose-700 underline font-black inline-flex items-center gap-1 hover:text-rose-900 transition-all cursor-pointer">
                               Firebase Rules Console <ExternalLink className="w-3 h-3" />
@@ -204,24 +204,24 @@ function HomeContent() {
                           </div>
                         </div>
 
-                        <div className="flex gap-3">
-                          <span className="flex items-center justify-center bg-rose-200/60 text-rose-900 font-bold w-6 h-6 rounded-full text-xs shrink-0 mt-0.5">2</span>
+                        <div className="flex gap-2.5">
+                          <span className="flex items-center justify-center bg-rose-200/60 text-rose-900 font-bold w-5 h-5 rounded-full text-xs shrink-0 mt-0.5">2</span>
                           <p>Copy the database rules block on the right.</p>
                         </div>
 
-                        <div className="flex gap-3">
-                          <span className="flex items-center justify-center bg-rose-200/60 text-rose-900 font-bold w-6 h-6 rounded-full text-xs shrink-0 mt-0.5">3</span>
+                        <div className="flex gap-2.5">
+                          <span className="flex items-center justify-center bg-rose-200/60 text-rose-900 font-bold w-5 h-5 rounded-full text-xs shrink-0 mt-0.5">3</span>
                           <p>Paste them inside the rules editor and click <strong className="font-bold text-rose-900">Publish</strong>.</p>
                         </div>
 
-                        <div className="flex gap-3">
-                          <span className="flex items-center justify-center bg-rose-200/60 text-rose-900 font-bold w-6 h-6 rounded-full text-xs shrink-0 mt-0.5">4</span>
+                        <div className="flex gap-2.5">
+                          <span className="flex items-center justify-center bg-rose-200/60 text-rose-900 font-bold w-5 h-5 rounded-full text-xs shrink-0 mt-0.5">4</span>
                           <p>Click the <strong className="font-bold text-rose-900">Sync</strong> button in the top menu to complete data sync!</p>
                         </div>
                       </div>
 
                       <div className="relative">
-                        <div className="absolute top-3 right-3 z-10">
+                        <div className="absolute top-2.5 right-2.5 z-10">
                           <button
                             onClick={handleCopyRules}
                             className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer shadow-md ${
@@ -234,7 +234,7 @@ function HomeContent() {
                             {copiedRules ? 'Copied!' : 'Copy Rules'}
                           </button>
                         </div>
-                        <pre className="bg-gray-950 text-emerald-400 font-mono text-xs rounded-2xl p-5 border border-rose-200/30 overflow-x-auto text-left leading-normal shadow-inner max-h-[160px]">
+                        <pre className="bg-gray-950 text-emerald-400 font-mono text-xs rounded-xl p-4 border border-rose-200/30 overflow-x-auto text-left leading-normal shadow-inner max-h-[140px]">
 {`{
   "rules": {
     ".read": "true",
@@ -251,61 +251,61 @@ function HomeContent() {
           </AnimatePresence>
 
           <motion.div 
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-[3rem] p-8 md:p-16 text-center border border-gray-100 shadow-2xl relative overflow-hidden"
+            className="w-full bg-white dark:bg-slate-900/90 rounded-3xl sm:rounded-[2.5rem] p-5 sm:p-8 lg:p-10 text-center border border-gray-100 dark:border-slate-800 shadow-xl relative overflow-hidden"
           >
             {/* Decorative background element */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-orange-50 rounded-full -mr-32 -mt-32 opacity-50 blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-50 rounded-full -ml-32 -mb-32 opacity-50 blur-3xl" />
+            <div className="absolute top-0 right-0 w-64 h-64 bg-orange-50 dark:bg-orange-950/20 rounded-full -mr-32 -mt-32 opacity-50 blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-50 dark:bg-blue-950/20 rounded-full -ml-32 -mb-32 opacity-50 blur-3xl pointer-events-none" />
   
             <div className="relative z-10">
-              <h2 className="text-4xl md:text-6xl font-black text-gray-900 mb-6 tracking-tighter leading-tight">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 dark:text-gray-100 mb-2 sm:mb-3 tracking-tight leading-tight">
                 Welcome, {store.name}!
               </h2>
-              <p className="text-xl text-gray-500 mb-16 font-medium max-w-2xl mx-auto">
+              <p className="text-sm sm:text-base md:text-lg text-gray-500 dark:text-gray-400 mb-6 sm:mb-8 font-medium max-w-2xl mx-auto">
                 Your store is open and ready for business. What would you like to do today?
               </p>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5 lg:gap-6 w-full">
                 {filteredItems.map((item, index) => (
                   <motion.div
                     key={item.title}
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
+                    transition={{ delay: index * 0.06 }}
                   >
                     {'href' in item && item.href ? (
                       <Link 
                         href={item.href}
-                        className="group block p-8 bg-white rounded-3xl border-2 border-gray-100 hover:border-orange-400 hover:shadow-xl transition-all relative overflow-hidden h-full cursor-pointer"
+                        className="group block p-4 sm:p-6 lg:p-7 bg-white dark:bg-slate-800/90 rounded-2xl sm:rounded-3xl border-2 border-gray-100 dark:border-slate-700/80 hover:border-orange-500 dark:hover:border-orange-500 hover:shadow-xl transition-all relative overflow-hidden h-full cursor-pointer"
                       >
-                        <div className={`${item.color} w-14 h-14 rounded-2xl flex items-center justify-center mb-6 text-white shadow-lg ${item.shadow} group-hover:scale-110 transition-transform`}>
+                        <div className={`${item.color} w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center mb-4 sm:mb-5 text-white shadow-lg ${item.shadow} group-hover:scale-110 transition-transform`}>
                           <item.icon className="w-6 h-6" />
                         </div>
                         <div className="text-left">
-                          <p className="font-black text-xl tracking-tight text-gray-800 mb-1.5">{item.title}</p>
-                          <p className="text-gray-400 font-medium text-xs">{item.description}</p>
+                          <p className="font-black text-base sm:text-lg lg:text-xl tracking-tight text-gray-900 dark:text-gray-100 mb-1 leading-snug">{item.title}</p>
+                          <p className="text-gray-500 dark:text-gray-400 font-medium text-xs sm:text-sm">{item.description}</p>
                         </div>
                         
-                        <div className="mt-6 flex items-center gap-2 text-orange-500 font-black text-[10px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0">
+                        <div className="mt-4 sm:mt-5 flex items-center gap-1.5 text-orange-500 font-black text-[10px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all translate-x-[-8px] group-hover:translate-x-0">
                           Open Menu <ArrowRight className="w-3.5 h-3.5" />
                         </div>
                       </Link>
                     ) : 'onClick' in item ? (
                       <button 
                         onClick={item.onClick}
-                        className="group block w-full p-8 bg-white rounded-3xl border-2 border-gray-100 hover:border-orange-400 hover:shadow-xl transition-all relative overflow-hidden h-full text-left cursor-pointer"
+                        className="group block w-full p-4 sm:p-6 lg:p-7 bg-white dark:bg-slate-800/90 rounded-2xl sm:rounded-3xl border-2 border-gray-100 dark:border-slate-700/80 hover:border-orange-500 dark:hover:border-orange-500 hover:shadow-xl transition-all relative overflow-hidden h-full text-left cursor-pointer"
                       >
-                        <div className={`${item.color} w-14 h-14 rounded-2xl flex items-center justify-center mb-6 text-white shadow-lg ${item.shadow} group-hover:scale-110 transition-transform`}>
+                        <div className={`${item.color} w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center mb-4 sm:mb-5 text-white shadow-lg ${item.shadow} group-hover:scale-110 transition-transform`}>
                           <item.icon className="w-6 h-6" />
                         </div>
                         <div>
-                          <p className="font-black text-xl tracking-tight text-gray-800 mb-1.5">{item.title}</p>
-                          <p className="text-gray-400 font-medium text-xs">{item.description}</p>
+                          <p className="font-black text-base sm:text-lg lg:text-xl tracking-tight text-gray-900 dark:text-gray-100 mb-1 leading-snug">{item.title}</p>
+                          <p className="text-gray-500 dark:text-gray-400 font-medium text-xs sm:text-sm">{item.description}</p>
                         </div>
                         
-                        <div className="mt-6 flex items-center gap-2 text-orange-500 font-black text-[10px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0">
+                        <div className="mt-4 sm:mt-5 flex items-center gap-1.5 text-orange-500 font-black text-[10px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all translate-x-[-8px] group-hover:translate-x-0">
                           Open Settings <ArrowRight className="w-3.5 h-3.5" />
                         </div>
                       </button>
@@ -316,24 +316,24 @@ function HomeContent() {
             </div>
           </motion.div>
   
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-gray-900 rounded-[2.5rem] p-8 text-white flex items-center justify-between shadow-xl">
+          <div className="mt-6 sm:mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full">
+            <div className="bg-gray-900 dark:bg-slate-900 rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white flex items-center justify-between shadow-lg border border-gray-800">
               <div>
-                <p className="text-gray-400 font-black text-[10px] uppercase tracking-widest mb-2">Quick Tip</p>
-                <h4 className="text-xl font-bold tracking-tight">Use &quot;Quick Add&quot; for items not in your inventory.</h4>
+                <p className="text-gray-400 font-black text-[10px] uppercase tracking-widest mb-1.5">Quick Tip</p>
+                <h4 className="text-base sm:text-lg font-bold tracking-tight">Use &quot;Quick Add&quot; for items not in your inventory.</h4>
               </div>
-              <div className="bg-white/10 p-4 rounded-2xl">
-                <ShoppingCart className="w-8 h-8 text-orange-500" />
+              <div className="bg-white/10 p-3.5 rounded-2xl shrink-0 ml-4">
+                <ShoppingCart className="w-7 h-7 text-orange-500" />
               </div>
             </div>
             
-            <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-xl flex items-center justify-between">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-gray-100 dark:border-slate-800 shadow-lg flex items-center justify-between">
               <div>
-                <p className="text-gray-400 font-black text-[10px] uppercase tracking-widest mb-2">Offline Ready</p>
-                <h4 className="text-xl font-bold tracking-tight text-gray-900">Your data is saved locally for offline use.</h4>
+                <p className="text-gray-400 font-black text-[10px] uppercase tracking-widest mb-1.5">Offline Ready</p>
+                <h4 className="text-base sm:text-lg font-bold tracking-tight text-gray-900 dark:text-gray-100">Your data is saved locally for offline use.</h4>
               </div>
-              <div className="bg-green-50 p-4 rounded-2xl">
-                <Package className="w-8 h-8 text-green-600" />
+              <div className="bg-green-50 dark:bg-green-950/40 p-3.5 rounded-2xl shrink-0 ml-4">
+                <Package className="w-7 h-7 text-green-600 dark:text-green-400" />
               </div>
             </div>
           </div>
